@@ -1,0 +1,674 @@
+---
+Rule Type: Auto Attached
+globs: '**/test/**/*.dart'
+---
+
+## Testing Guidelines for 10xCards
+
+### General Testing Principles
+
+- Write tests for all business logic (use cases, services, cubits)
+- Implement widget tests for all pages and complex widgets
+- Use mocktail for mocking dependencies (preferred over mockito)
+- Aim for high code coverage (>80%) especially in domain and presentation layers
+- Use golden tests for visual regression testing (alchemist package)
+- Implement integration tests for critical user flows (patrol package)
+- Use test tags to organize and run specific test suites
+- Follow the Arrange-Act-Assert (AAA) pattern in all tests
+
+### Test Directory Structure
+
+Mirror the main source structure in your test directory:
+
+```
+📦 test
+┃ ┣ 📂app
+┃ ┃ ┗ 📂view
+┃ ┃ ┃ ┗ 📜app_test.dart
+┃ ┣ 📂features
+┃ ┃ ┗ 📂{{feature_name}}
+┃ ┃ ┃ ┣ 📂domain
+┃ ┃ ┃ ┃ ┗ 📂usecase
+┃ ┃ ┃ ┃ ┃ ┗ 📜{{usecase}}_test.dart
+┃ ┃ ┃ ┣ 📂data
+┃ ┃ ┃ ┃ ┗ 📂service
+┃ ┃ ┃ ┃ ┃ ┗ 📜{{service}}_test.dart
+┃ ┃ ┃ ┗ 📂presentation
+┃ ┃ ┃ ┃ ┣ 📂cubit
+┃ ┃ ┃ ┃ ┃ ┗ 📜{{cubit}}_test.dart
+┃ ┃ ┃ ┃ ┗ 📂view
+┃ ┃ ┃ ┃ ┃ ┗ 📜{{page}}_test.dart
+┃ ┗ 📂helpers
+┃ ┃ ┣ 📜helpers.dart (exports all helpers)
+┃ ┃ ┗ 📜pump_app.dart (test helper for widget testing)
+```
+
+### Mocking with Mocktail
+
+#### Naming Conventions
+
+**Always follow these naming conventions:**
+- Mock class names: Prefix with `Mock` (e.g., `MockCounterCubit`, `MockAuthService`)
+- Mock instance variables: Prefix with `mock` in camelCase (e.g., `mockCounterCubit`, `mockAuthService`)
+
+#### Creating Mocks
+
+**For Cubits/Blocs:**
+```dart
+import 'package:bloc_test/bloc_test.dart';
+
+class MockCounterCubit extends MockCubit<CounterState>
+    implements CounterCubit {}
+```
+
+**For Regular Classes:**
+```dart
+import 'package:mocktail/mocktail.dart';
+
+class MockAuthService extends Mock implements AuthService {}
+class MockUserRepository extends Mock implements UserRepository {}
+```
+
+**For Use Cases:**
+```dart
+class MockGetUserDataUseCase extends Mock implements GetUserDataUseCase {}
+```
+
+#### Stubbing Methods
+
+Use `when().thenReturn()` for synchronous methods:
+```dart
+when(() => mockAuthService.isLoggedIn()).thenReturn(true);
+```
+
+Use `when().thenAnswer()` for asynchronous methods:
+```dart
+when(() => mockAuthService.login(email: any(named: 'email'), password: any(named: 'password')))
+    .thenAnswer((_) async => UserModel(id: '1', email: 'test@test.com'));
+```
+
+Stub methods to throw exceptions:
+```dart
+when(() => mockAuthService.login(email: any(named: 'email'), password: any(named: 'password')))
+    .thenThrow(AppFailure.unauthorized());
+```
+
+#### Verifying Method Calls
+
+Verify a method was called:
+```dart
+verify(() => mockAuthService.login(
+  email: 'test@test.com',
+  password: 'password123',
+)).called(1);
+```
+
+Verify method was never called:
+```dart
+verifyNever(() => mockAuthService.logout());
+```
+
+Verify method call order:
+```dart
+verifyInOrder([
+  () => mockAuthService.login(email: any(named: 'email'), password: any(named: 'password')),
+  () => mockUserRepository.saveUser(any()),
+]);
+```
+
+### Testing Cubits
+
+Use `blocTest` from `bloc_test` package for comprehensive cubit testing:
+
+#### Basic Cubit Test Structure
+
+```dart
+import 'package:bloc_test/bloc_test.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockGetUserDataUseCase extends Mock implements GetUserDataUseCase {}
+
+void main() {
+  group('UserCubit', () {
+    late GetUserDataUseCase mockGetUserData;
+    late UserCubit cubit;
+
+    setUp(() {
+      mockGetUserData = MockGetUserDataUseCase();
+      cubit = UserCubit(getUserData: mockGetUserData);
+    });
+
+    tearDown(() {
+      cubit.close();
+    });
+
+    test('initial state is UserState.initial()', () {
+      expect(cubit.state, equals(const UserState.initial()));
+    });
+
+    blocTest<UserCubit, UserState>(
+      'emits [loading, loaded] when loadUser succeeds',
+      build: () {
+        when(() => mockGetUserData()).thenAnswer(
+          (_) async => UserModel(id: '1', name: 'John'),
+        );
+        return cubit;
+      },
+      act: (cubit) => cubit.loadUser(),
+      expect: () => [
+        const UserState.loading(),
+        UserState.loaded(UserModel(id: '1', name: 'John')),
+      ],
+    );
+
+    blocTest<UserCubit, UserState>(
+      'emits [loading, error] when loadUser fails',
+      build: () {
+        when(() => mockGetUserData()).thenThrow(AppFailure.network());
+        return cubit;
+      },
+      act: (cubit) => cubit.loadUser(),
+      expect: () => [
+        const UserState.loading(),
+        UserState.error(AppFailure.network()),
+      ],
+    );
+  });
+}
+```
+
+#### Testing with Initial State (seed)
+
+```dart
+blocTest<CounterCubit, CounterState>(
+  'increment from specific count',
+  build: () => cubit,
+  seed: () => const CounterState.data(CounterModel(count: 5)),
+  act: (cubit) => cubit.increment(),
+  expect: () => [
+    const CounterState.data(CounterModel(count: 6)),
+  ],
+);
+```
+
+#### Testing Multiple Sequential Actions
+
+```dart
+blocTest<UserCubit, UserState>(
+  'handles refresh after initial load',
+  build: () {
+    when(() => mockGetUserData()).thenAnswer(
+      (_) async => UserModel(id: '1', name: 'John'),
+    );
+    return cubit;
+  },
+  act: (cubit) {
+    // PREFERRED: Use cascade notation for multiple sequential calls
+    cubit
+      ..loadUser()
+      ..refresh();
+  },
+  expect: () => [
+    const UserState.loading(),
+    UserState.loaded(UserModel(id: '1', name: 'John')),
+    const UserState.loading(),
+    UserState.loaded(UserModel(id: '1', name: 'John')),
+  ],
+);
+
+// Alternative (acceptable for async operations):
+blocTest<UserCubit, UserState>(
+  'handles async operations sequentially',
+  build: () {
+    when(() => mockGetUserData()).thenAnswer(
+      (_) async => UserModel(id: '1', name: 'John'),
+    );
+    return cubit;
+  },
+  act: (cubit) async {
+    await cubit.loadUser();
+    await cubit.refresh();
+  },
+  expect: () => [
+    const UserState.loading(),
+    UserState.loaded(UserModel(id: '1', name: 'John')),
+    const UserState.loading(),
+    UserState.loaded(UserModel(id: '1', name: 'John')),
+  ],
+);
+```
+
+**Cascade Notation Benefits:**
+- ✅ More concise and readable code
+- ✅ Reduces repetition of the cubit variable
+- ✅ Makes sequential operations visually clear
+- ✅ Preferred Dart idiom for multiple method calls on same object
+
+**When to use cascade notation:**
+```dart
+// ✅ GOOD: Use cascade for synchronous method calls
+act: (cubit) {
+  cubit
+    ..increment()
+    ..increment()
+    ..decrement();
+}
+
+// ⚠️ ACCEPTABLE: Without cascade, but more verbose
+act: (cubit) {
+  cubit.increment();
+  cubit.increment();
+  cubit.decrement();
+}
+
+// ✅ GOOD: For async operations, can still use cascade
+act: (cubit) {
+  cubit
+    ..loadData()
+    ..refresh();
+}
+
+// ✅ ALSO GOOD: Explicit async/await when needed
+act: (cubit) async {
+  await cubit.loadData();
+  await cubit.refresh();
+}
+```
+
+### Testing Pages and Views
+
+#### Testing Page Widgets (with GetIt)
+
+Pages use `getIt<T>()` for dependency injection, so tests must register mocks:
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:xcards/app/di/injection.dart';
+import '../../../helpers/helpers.dart';
+
+class MockUserCubit extends MockCubit<UserState> implements UserCubit {}
+
+void main() {
+  group('UserPage', () {
+    late UserCubit mockUserCubit;
+
+    setUp(() {
+      mockUserCubit = MockUserCubit();
+      // Register mock in GetIt for dependency injection
+      getIt.registerFactory<UserCubit>(() => mockUserCubit);
+    });
+
+    tearDown(() {
+      // IMPORTANT: Unregister to prevent test interference
+      getIt.unregister<UserCubit>();
+    });
+
+    testWidgets('renders UserView', (tester) async {
+      when(() => mockUserCubit.state).thenReturn(const UserState.initial());
+      
+      await tester.pumpApp(const UserPage());
+      
+      expect(find.byType(UserView), findsOneWidget);
+    });
+
+    testWidgets('calls init on cubit when page loads', (tester) async {
+      when(() => mockUserCubit.state).thenReturn(const UserState.initial());
+      when(() => mockUserCubit.init()).thenReturn(null);
+      
+      await tester.pumpApp(const UserPage());
+      
+      verify(() => mockUserCubit.init()).called(1);
+    });
+  });
+}
+```
+
+#### Testing View Widgets (without GetIt)
+
+Views can be tested by providing mocked cubit directly via `BlocProvider.value`:
+
+```dart
+void main() {
+  group('UserView', () {
+    late UserCubit mockUserCubit;
+
+    setUp(() {
+      mockUserCubit = MockUserCubit();
+    });
+
+    testWidgets('displays loading indicator in loading state', (tester) async {
+      when(() => mockUserCubit.state).thenReturn(const UserState.loading());
+      
+      await tester.pumpApp(
+        BlocProvider.value(
+          value: mockUserCubit,
+          child: const UserView(),
+        ),
+      );
+      
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+
+    testWidgets('displays user data when loaded', (tester) async {
+      final user = UserModel(id: '1', name: 'John Doe');
+      when(() => mockUserCubit.state).thenReturn(UserState.loaded(user));
+      
+      await tester.pumpApp(
+        BlocProvider.value(
+          value: mockUserCubit,
+          child: const UserView(),
+        ),
+      );
+      
+      expect(find.text('John Doe'), findsOneWidget);
+    });
+
+    testWidgets('displays error message in error state', (tester) async {
+      when(() => mockUserCubit.state).thenReturn(
+        UserState.error(AppFailure.network()),
+      );
+      
+      await tester.pumpApp(
+        BlocProvider.value(
+          value: mockUserCubit,
+          child: const UserView(),
+        ),
+      );
+      
+      expect(find.text('Network error'), findsOneWidget);
+    });
+
+    testWidgets('calls refresh when refresh button is tapped', (tester) async {
+      when(() => mockUserCubit.state).thenReturn(const UserState.initial());
+      when(() => mockUserCubit.refresh()).thenReturn(null);
+      
+      await tester.pumpApp(
+        BlocProvider.value(
+          value: mockUserCubit,
+          child: const UserView(),
+        ),
+      );
+      
+      await tester.tap(find.byIcon(Icons.refresh));
+      await tester.pump();
+      
+      verify(() => mockUserCubit.refresh()).called(1);
+    });
+  });
+}
+```
+
+### Testing Widgets
+
+For custom reusable widgets, test in isolation:
+
+```dart
+void main() {
+  group('CustomButton', () {
+    testWidgets('displays label text', (tester) async {
+      await tester.pumpApp(
+        CustomButton(
+          label: 'Click Me',
+          onPressed: () {},
+        ),
+      );
+      
+      expect(find.text('Click Me'), findsOneWidget);
+    });
+
+    testWidgets('calls onPressed when tapped', (tester) async {
+      var wasPressed = false;
+      
+      await tester.pumpApp(
+        CustomButton(
+          label: 'Click Me',
+          onPressed: () => wasPressed = true,
+        ),
+      );
+      
+      await tester.tap(find.text('Click Me'));
+      await tester.pump();
+      
+      expect(wasPressed, isTrue);
+    });
+
+    testWidgets('is disabled when onPressed is null', (tester) async {
+      await tester.pumpApp(
+        const CustomButton(
+          label: 'Disabled',
+          onPressed: null,
+        ),
+      );
+      
+      final button = tester.widget<ElevatedButton>(
+        find.byType(ElevatedButton),
+      );
+      
+      expect(button.enabled, isFalse);
+    });
+  });
+}
+```
+
+### Test Helpers
+
+#### PumpApp Helper
+
+Create a `pump_app.dart` helper to reduce boilerplate:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:xcards/l10n/l10n.dart';
+
+extension PumpApp on WidgetTester {
+  Future<void> pumpApp(Widget widget) async {
+    // Set a consistent screen size for tests
+    await binding.setSurfaceSize(const Size(375, 812));
+    
+    return pumpWidget(
+      ScreenUtilInit(
+        designSize: const Size(375, 812),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: widget,
+        ),
+      ),
+    );
+  }
+}
+```
+
+#### Helpers Export File
+
+Create a `helpers.dart` file to export all test utilities:
+
+```dart
+export 'pump_app.dart';
+// Export other helpers as needed
+```
+
+### Best Practices
+
+#### DO:
+✅ Test all business logic in use cases and services  
+✅ Test all state transitions in cubits  
+✅ Test UI rendering for all states (initial, loading, loaded, error)  
+✅ Test user interactions (button taps, text input, gestures)  
+✅ Mock all external dependencies  
+✅ Use descriptive test names that explain what is being tested  
+✅ Group related tests using `group()`  
+✅ Clean up resources in `tearDown()` (close cubits, unregister from GetIt)  
+✅ Test edge cases and error scenarios  
+✅ Use const constructors in test widgets for better performance  
+✅ **Use cascade notation (`..`) for multiple sequential method calls on the same object**  
+✅ Prefer synchronous `act` blocks when possible for clearer test flow  
+
+#### DON'T:
+❌ Don't use real implementations in tests - always mock dependencies  
+❌ Don't test Flutter framework behavior - focus on your code  
+❌ Don't write tests that depend on each other  
+❌ Don't use hard-coded delays (`await Future.delayed()`) - use `pumpAndSettle()`  
+❌ Don't forget to unregister mocks from GetIt in `tearDown()`  
+❌ Don't test implementation details - test behavior  
+❌ Don't skip error case testing  
+❌ Don't use `find.byType()` when more specific finders are available  
+❌ **Don't repeat the cubit variable unnecessarily - use cascade notation instead**  
+
+#### Code Style in Tests:
+
+**Cascade Notation (Preferred):**
+```dart
+// ✅ GOOD: Clean and concise with cascade notation
+act: (cubit) {
+  cubit
+    ..increment()
+    ..increment()
+    ..decrement();
+}
+
+// ❌ AVOID: Repetitive without cascade
+act: (cubit) {
+  cubit.increment();
+  cubit.increment();
+  cubit.decrement();
+}
+```
+
+**Const Constructors:**
+```dart
+// ✅ GOOD: Use const for immutable objects
+expect: () => [
+  const CounterState.data(CounterModel(count: 1)),
+  const CounterState.data(CounterModel(count: 2)),
+],
+
+// ❌ AVOID: Missing const where possible
+expect: () => [
+  CounterState.data(CounterModel(count: 1)),
+  CounterState.data(CounterModel(count: 2)),
+],
+```
+
+**Async Handling:**
+```dart
+// ✅ GOOD: Explicit async when needed
+tearDown() async {
+  await cubit.close();
+}
+
+// ⚠️ ACCEPTABLE but less explicit
+tearDown() {
+  cubit.close();
+}
+```  
+
+### Running Tests
+
+Run all tests:
+```bash
+flutter test
+```
+
+Run specific test file:
+```bash
+flutter test test/features/user/presentation/cubit/user_cubit_test.dart
+```
+
+Run tests with coverage:
+```bash
+flutter test --coverage
+```
+
+Run tests with tags:
+```bash
+flutter test --tags unit
+flutter test --tags widget
+```
+
+### Code Coverage
+
+Aim for these coverage targets:
+- **Domain layer (use cases, models):** 90%+
+- **Presentation layer (cubits, states):** 85%+
+- **Data layer (services, data sources):** 80%+
+- **UI layer (pages, views, widgets):** 70%+
+
+Generate and view coverage report:
+```bash
+flutter test --coverage
+genhtml coverage/lcov.info -o coverage/html
+open coverage/html/index.html
+```
+
+### Common Testing Patterns
+
+#### Testing with Multiple Mock Responses
+
+```dart
+when(() => mockService.getData())
+    .thenAnswer((_) async => data1);
+
+// Later in test
+when(() => mockService.getData())
+    .thenAnswer((_) async => data2);
+```
+
+#### Testing Debounced Actions
+
+```dart
+testWidgets('debounces search input', (tester) async {
+  when(() => mockCubit.state).thenReturn(const SearchState.initial());
+  when(() => mockCubit.search(any())).thenReturn(null);
+  
+  await tester.pumpApp(SearchView());
+  
+  await tester.enterText(find.byType(TextField), 'test');
+  await tester.pump(const Duration(milliseconds: 100));
+  await tester.enterText(find.byType(TextField), 'testing');
+  await tester.pump(const Duration(milliseconds: 300));
+  
+  // Verify search was called only once after debounce
+  verify(() => mockCubit.search('testing')).called(1);
+});
+```
+
+#### Testing Navigation
+
+```dart
+testWidgets('navigates to detail page on item tap', (tester) async {
+  final mockObserver = MockNavigatorObserver();
+  
+  await tester.pumpApp(
+    MaterialApp(
+      home: ListPage(),
+      navigatorObservers: [mockObserver],
+    ),
+  );
+  
+  await tester.tap(find.text('Item 1'));
+  await tester.pumpAndSettle();
+  
+  verify(() => mockObserver.didPush(any(), any())).called(1);
+});
+```
+
+### Troubleshooting Common Issues
+
+**Issue:** `GetIt: Object/factory with type X is not registered`  
+**Solution:** Register the mock in `setUp()` with `getIt.registerFactory<X>(() => mockX)`
+
+**Issue:** Tests interfering with each other  
+**Solution:** Always unregister mocks in `tearDown()` with `getIt.unregister<X>()`
+
+**Issue:** Widget not found during test  
+**Solution:** Call `await tester.pumpAndSettle()` to let all animations complete
+
+**Issue:** State not updating in test  
+**Solution:** Mock the state before calling `pumpApp()` using `when(() => mockCubit.state).thenReturn(...)`
+
+**Issue:** `LateInitializationError` for ScreenUtil  
+**Solution:** Ensure `pumpApp()` helper includes `ScreenUtilInit` wrapper

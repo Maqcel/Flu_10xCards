@@ -1,0 +1,272 @@
+---
+Rule Type: Always
+---
+
+# AI Rules for 10xCards
+
+A Flutter application for spaced repetition learning using flashcards.
+
+## Tech Stack
+
+- Flutter
+- Dart
+- BLoC/Cubit for state management
+- auto_route for navigation
+- get_it for dependency injection (with injectable)
+- freezed for immutable models
+- retrofit for API clients
+- flutter_screenutil for responsive UI
+
+## Project Structure
+
+When introducing changes to the project, always follow the directory structure below:
+
+```
+📦 lib
+┃ ┣ 📂app
+┃ ┃ ┣ 📂config - configuration files (DI, networking, database)
+┃ ┃ ┣ 📂constants - app-wide constants (URLs, keys)
+┃ ┃ ┗ 📂failures - error handling (AppFailure)
+┃ ┣ 📂presentation
+┃ ┃ ┣ 📂common_widgets - reusable UI components
+┃ ┃ ┣ 📂routing - auto_route configuration
+┃ ┃ ┗ 📂styles - AppDimensions, AppColors, AppTextStyles
+┃ ┗ 📂features
+┃ ┃ ┗ 📂{{featureName.snakeCase()}}
+┃ ┃ ┃ ┣ 📂data
+┃ ┃ ┃ ┃ ┣ 📂dto - Data Transfer Objects with freezed + json_serializable
+┃ ┃ ┃ ┃ ┃ ┗ 📜{{featureName.snakeCase()}}_dto.dart
+┃ ┃ ┃ ┃ ┣ 📂data_source - Retrofit API clients
+┃ ┃ ┃ ┃ ┃ ┗ 📜{{featureName.snakeCase()}}_service_data_source.dart
+┃ ┃ ┃ ┃ ┗ 📂service - Service implementations
+┃ ┃ ┃ ┃ ┃ ┗ 📜{{featureName.snakeCase()}}_service.dart
+┃ ┃ ┃ ┣ 📂domain
+┃ ┃ ┃ ┃ ┣ 📂model - Domain models with freezed
+┃ ┃ ┃ ┃ ┃ ┗ 📜{{featureName.snakeCase()}}_model.dart
+┃ ┃ ┃ ┃ ┗ 📂usecase - Use case implementations
+┃ ┃ ┃ ┃ ┃ ┗ 📜get_{{featureName.snakeCase()}}_data.dart
+┃ ┃ ┃ ┗ 📂presentation
+┃ ┃ ┃ ┃ ┣ 📂cubit
+┃ ┃ ┃ ┃ ┃ ┣ 📜{{featureName.snakeCase()}}_cubit.dart
+┃ ┃ ┃ ┃ ┃ ┗ 📜{{featureName.snakeCase()}}_state.dart
+┃ ┃ ┃ ┃ ┣ 📂view
+┃ ┃ ┃ ┃ ┃ ┣ 📜{{featureName.snakeCase()}}_page.dart
+┃ ┃ ┃ ┃ ┃ ┗ 📜{{featureName.snakeCase()}}_view.dart
+┃ ┃ ┃ ┃ ┗ 📂widgets
+┃ ┃ ┃ ┃ ┃ ┗ 📜{{featureName.snakeCase()}}_widget.dart
+📦 test
+┃ ┗ 📂features
+┃ ┃ ┗ 📂{{featureName.snakeCase()}}
+┃ ┃ ┃ ┗ 📂presentation
+┃ ┃ ┃ ┃ ┗ 📂view
+┃ ┃ ┃ ┃ ┃ ┗ 📜{{featureName.snakeCase()}}_page_test.dart
+```
+
+## CODING_PRACTICES
+
+### Guidelines for SUPPORT_LEVEL
+
+#### SUPPORT_EXPERT
+
+- Favor elegant, maintainable solutions over verbose code. Assume understanding of Dart idioms and Flutter best practices.
+- Highlight potential performance implications and optimization opportunities, especially regarding widget rebuilds and state management.
+- Frame solutions within broader architectural contexts and suggest design alternatives when appropriate.
+- Focus comments on 'why' not 'what' - assume code readability through well-named functions and variables.
+- Proactively address edge cases, null safety considerations, and platform-specific issues without being prompted.
+- When debugging, provide targeted diagnostic approaches using Flutter DevTools and proper logging strategies.
+- Suggest comprehensive testing strategies including widget tests, integration tests, and golden tests.
+
+### Guidelines for VERSION_CONTROL
+
+#### CONVENTIONAL_COMMITS
+
+- Follow the format: type(scope): description for all commit messages
+- Use consistent types (feat, fix, docs, style, refactor, test, chore) across the project
+- Define clear scopes based on feature modules to indicate affected areas
+- Include issue references in commit messages to link changes to requirements
+- Use breaking change footer (!: or BREAKING CHANGE:) to clearly mark incompatible changes
+- Configure commit lint to automatically enforce conventional commit format
+
+### Guidelines for ARCHITECTURE
+
+#### CLEAN_ARCHITECTURE
+
+- Strictly separate code into layers: domain (models, use cases), data (services, data sources), and presentation (pages, cubits, widgets)
+- Ensure dependencies point inward, with domain layer having no knowledge of data or presentation layers
+- Implement domain models that encapsulate business logic without framework dependencies
+- Use repositories to abstract data source implementations from business logic
+- Create use cases that orchestrate domain logic for specific business operations
+- Implement mappers to transform data between layers (DTOs to models) to maintain separation of concerns
+- Keep presentation logic in Cubits/Blocs, not in widgets
+
+### Guidelines for STATIC_ANALYSIS
+
+#### DART_ANALYZER
+
+- Configure analysis_options.yaml to enforce strict linting rules
+- Enable all recommended Flutter lints and customize for project-specific patterns
+- Use `flutter analyze` in CI/CD pipelines to catch issues early
+- Implement custom lint rules for project-specific conventions
+- Address all analyzer warnings before committing code
+- Use `dart fix --apply` to automatically fix common issues
+
+### Guidelines for clean code
+
+- Prioritize error handling and edge cases
+- Handle errors and edge cases at the beginning of functions
+- Use early returns for error conditions to avoid deeply nested if statements
+- Place the happy path last in the function for improved readability
+- Avoid unnecessary else statements; use if-return pattern instead
+- Use guard clauses to handle preconditions and invalid states early
+- Implement proper error logging and user-friendly error messages
+- Consider using custom error types or error factories for consistent error handling
+- Ensure that one-liner methods use lambda syntax (=>)
+- Create new features inside `./lib/features` following the defined structure
+- Use const constructors wherever possible for performance optimization
+- Prefer composition over inheritance
+- Keep widgets small and focused on a single responsibility
+- Extract complex widget trees into separate widget classes
+
+### Guidelines for State Management
+
+#### BLOC/CUBIT
+
+- Use Cubit for state management
+- Implement freezed for state classes to enable proper state comparison
+- Keep business logic in use cases, not in Cubits
+- Use BlocProvider inside wrappedRoute method with get_it injection
+- Implement BlocObserver for global error handling and logging
+- Use BlocListener for side effects (navigation, showing dialogs)
+- Use BlocBuilder for rebuilding UI based on state changes
+- Use BlocConsumer when you need both listener and builder functionality
+- Store AppFailure in state for error handling
+
+### Guidelines for Dependency Injection
+
+#### GET_IT with INJECTABLE
+
+- Use @injectable annotation for automatic registration
+- Use @LazySingleton() for services that should be created once
+- Use @module for providing external dependencies (Dio, databases)
+- Register Cubits with default scope (transient)
+- Use @Named() for different instances of the same type
+- Run build_runner to generate injection code
+
+### Guidelines for Navigation
+
+#### AUTO_ROUTE
+
+- Use @RoutePage() annotation on page widgets
+- Implement AutoRouteWrapper for dependency injection
+- Define static route() methods are not needed with auto_route
+- Use router.push() for navigation
+- Handle route parameters via constructor parameters
+- Generate routes with build_runner
+
+### Guidelines for Responsive Design
+
+#### FLUTTER_SCREENUTIL
+
+- Initialize ScreenUtil in main app widget
+- Use AppDimensions for consistent spacing and sizing
+- Define dimensions once in AppDimensions class (e.g., AppDimensions.h64)
+- Use .w for width, .h for height, .sp for font sizes
+- Avoid magic numbers - always use AppDimensions
+- Example: `SizedBox(height: AppDimensions.h16)` instead of `SizedBox(height: 16)`
+
+### Guidelines for Localization
+
+#### L10N with ARB Files
+
+- Never hardcode user-facing strings - always use l10n
+- Define all strings in ARB files (lib/l10n/arb/)
+- Support English (en) and Polish (pl) languages
+- Organize ARB files with section markers for readability
+- Access strings via context.l10n in code
+- Use descriptive, feature-prefixed keys (e.g., `loginEmailLabel`)
+- Use placeholders for dynamic values with type definitions
+- Run `flutter gen-l10n` after modifying ARB files
+- See l10n.mdc for detailed guidelines
+
+### Guidelines for Testing
+
+- Write tests for all business logic (use cases, services)
+- Implement widget tests for all pages and complex widgets
+- Use mocktail (preferred) or mockito for mocking dependencies
+- Aim for high code coverage (>80%) especially in domain layer
+- Use golden tests for visual regression testing of critical UI components (using alchemist package)
+- Implement integration tests for critical user flows (patrol package)
+- Use test tags to organize and run specific test suites
+
+#### Mocking Guidelines
+
+**Naming Convention:**
+- Always prefix mock classes with `Mock` (e.g., `MockCounterCubit`, `MockAuthService`)
+- Use lowercase with `mock` prefix for mock instances (e.g., `mockCounterCubit`, `mockAuthService`)
+
+**Creating Mocks:**
+```dart
+// For Cubits/Blocs - use MockCubit from bloc_test
+class MockCounterCubit extends MockCubit<CounterState>
+    implements CounterCubit {}
+
+// For regular classes - use Mock from mocktail
+class MockAuthService extends Mock implements AuthService {}
+```
+
+**GetIt Registration in Tests:**
+- When testing pages that use `getIt<T>()` for dependency injection, register mocks in `setUp()`
+- Always unregister mocks in `tearDown()` to prevent test interference
+- Use `registerFactory<T>()` for dependencies that should be created per injection
+
+**Example Test Structure:**
+```dart
+void main() {
+  group('FeaturePage', () {
+    late FeatureCubit mockFeatureCubit;
+
+    setUp(() {
+      mockFeatureCubit = MockFeatureCubit();
+      getIt.registerFactory<FeatureCubit>(() => mockFeatureCubit);
+    });
+
+    tearDown(() {
+      getIt.unregister<FeatureCubit>();
+    });
+
+    testWidgets('renders FeatureView', (tester) async {
+      when(() => mockFeatureCubit.state).thenReturn(FeatureState.initial());
+      await tester.pumpApp(FeaturePage());
+      expect(find.byType(FeatureView), findsOneWidget);
+    });
+  });
+
+  group('FeatureView', () {
+    late FeatureCubit mockFeatureCubit;
+
+    setUp(() {
+      mockFeatureCubit = MockFeatureCubit();
+    });
+
+    testWidgets('displays data correctly', (tester) async {
+      when(() => mockFeatureCubit.state).thenReturn(FeatureState.data(data));
+      await tester.pumpApp(
+        BlocProvider.value(
+          value: mockFeatureCubit,
+          child: const FeatureView(),
+        ),
+      );
+      expect(find.text('expected text'), findsOneWidget);
+    });
+  });
+}
+```
+
+**Key Testing Principles:**
+- Test `Page` widgets separately from `View` widgets
+- `Page` tests verify DI integration and proper widget rendering
+- `View` tests use `BlocProvider.value()` to provide mocked cubits directly
+- Always mock cubit state before calling `pumpApp()` or `pump()`
+- Use `when().thenReturn()` for stubbing method responses
+- Use `verify().called(n)` to verify method calls
+- Group related tests for better organization and shared setup

@@ -1,0 +1,494 @@
+---
+Rule Type: Auto Attached
+globs: '**/lib/features/**/presentation/cubit/**_cubit.dart, **/lib/features/**/presentation/cubit/**_state.dart'
+---
+
+## Cubit / State Management
+
+### General Guidelines
+
+- Cubits orchestrate use cases and manage presentation state
+- Keep business logic in use cases, not in Cubits
+- Cubits should be thin - they coordinate, not implement logic
+- Always emit new state instances for proper state comparison
+- Use freezed or equatable for state classes
+
+### Cubit Structure
+
+#### Cubit File (_cubit.dart)
+
+- Should extend Cubit<StateType>
+- Use @injectable annotation for get_it registration
+- Inject dependencies via constructor
+- Expose methods that represent user actions or events
+- Each method should emit appropriate states
+- Include state file using part directive
+- Example structure:
+```dart
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:injectable/injectable.dart';
+
+part 'feature_state.dart';
+part 'feature_cubit.freezed.dart';
+
+@injectable
+class FeatureCubit extends Cubit<FeatureState> {
+  FeatureCubit({
+    required GetFeatureDataUseCase getFeatureData,
+  })  : _getFeatureData = getFeatureData,
+        super(const FeatureState.initial());
+
+  final GetFeatureDataUseCase _getFeatureData;
+
+  Future<void> init() async {
+    await loadData();
+  }
+
+  Future<void> loadData() async {
+    emit(const FeatureState.loading());
+    try {
+      final data = await _getFeatureData();
+      emit(FeatureState.loaded(data));
+    } on AppFailure catch (failure) {
+      emit(FeatureState.error(failure));
+    }
+  }
+
+  void reset() => emit(const FeatureState.initial());
+}
+```
+
+#### State File (_state.dart)
+
+- Use freezed for immutable state classes with sealed unions
+- Define all possible states or use single state with status flags
+- Include AppFailure for error handling
+- Keep state data minimal - only what's needed for UI
+- Use part of directive to keep state with cubit
+- Example structure with multiple states:
+```dart
+part of 'feature_cubit.dart';
+
+@freezed
+abstract class FeatureState with _$FeatureState {
+  const factory FeatureState.initial() = _Initial;
+  const factory FeatureState.loading() = _Loading;
+  const factory FeatureState.loaded(FeatureModel data) = _Loaded;
+  const factory FeatureState.error(AppFailure failure) = _Error;
+}
+```
+
+- Example structure with single state:
+```dart
+part of 'sign_in_cubit.dart';
+
+@freezed
+abstract class SignInState with _$SignInState {
+  const factory SignInState({
+    @Default(EmailInput.pure()) EmailInput emailInput,
+    @Default(false) bool isEmailFocused,
+    @Default(PasswordInput.pure()) PasswordInput passwordInput,
+    @Default(true) bool isPasswordObscured,
+    @Default(false) bool isPasswordFocused,
+    @Default(false) bool isSignInButtonEnabled,
+    AppFailure? failure,
+  }) = _SignInState;
+}
+```
+
+### State Management Best Practices
+
+#### State Design
+
+- Keep states simple and focused
+- Avoid combining unrelated data in a single state
+- Use sealed classes (freezed) for exhaustive pattern matching
+- Include only UI-relevant data in states
+- Prefer multiple simple states over complex state with many nullable fields
+
+#### State Transitions
+
+- Always emit loading state before async operations
+- Handle errors gracefully with error states
+- Consider empty states for lists/collections
+- Implement proper state transitions (don't skip intermediate states)
+- Use emit() to notify UI of state changes
+
+#### Dependency Injection
+
+- Inject use cases, services, and repositories via constructor
+- Use abstract classes/interfaces for dependencies (testability)
+- Don't instantiate dependencies inside Cubit
+- Keep constructors simple - just assignment
+- Use required named parameters for clarity
+
+### Error Handling
+
+- Catch exceptions in Cubit methods
+- Store AppFailure in state instead of string messages
+- Emit states with AppFailure for errors
+- Log errors for debugging
+- Handle different AppFailure types appropriately
+- Example:
+```dart
+Future<void> loadData() async {
+  emit(const FeatureState.loading());
+  try {
+    final data = await _getFeatureData();
+    emit(FeatureState.loaded(data));
+  } on AppFailure catch (failure) {
+    emit(FeatureState.error(failure));
+  } catch (e) {
+    emit(FeatureState.error(
+      AppFailure.unexpected(message: 'An unexpected error occurred'),
+    ));
+  }
+}
+```
+
+- Example with single state pattern:
+```dart
+Future<void> signIn() async {
+  emit(state.copyWith(failure: null, isLoading: true));
+  try {
+    final result = await _signInUseCase(
+      email: state.emailInput.value,
+      password: state.passwordInput.value,
+    );
+    emit(state.copyWith(isLoading: false, isSuccess: true));
+  } on AppFailure catch (failure) {
+    emit(state.copyWith(failure: failure, isLoading: false));
+  }
+}
+```
+
+### Async Operations
+
+- Always await async operations before emitting results
+- Use Future<void> return type for async methods
+- Consider cancellation for long-running operations
+- Implement debouncing/throttling for rapid user actions
+- Handle concurrent operations appropriately
+
+### Memory Management
+
+- Close streams and clean up resources in close() method
+- Cancel ongoing operations when Cubit is closed
+- Unsubscribe from listeners
+- Example:
+```dart
+@override
+Future<void> close() {
+  _subscription?.cancel();
+  return super.close();
+}
+```
+
+### Testing Considerations
+
+- Make Cubits easily testable by injecting dependencies
+- Use blocTest package for testing state emissions
+- Mock use cases and services using mocktail
+- Test all possible state transitions
+- Test error scenarios
+
+#### Testing Cubit with blocTest
+
+Cubits should be tested using the `blocTest` function from `bloc_test` package:
+
+**Basic Test Structure:**
+```dart
+import 'package:bloc_test/bloc_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockGetFeatureDataUseCase extends Mock 
+    implements GetFeatureDataUseCase {}
+
+void main() {
+  group('FeatureCubit', () {
+    late GetFeatureDataUseCase mockGetFeatureData;
+    late FeatureCubit cubit;
+
+    setUp(() {
+      mockGetFeatureData = MockGetFeatureDataUseCase();
+      cubit = FeatureCubit(getFeatureData: mockGetFeatureData);
+    });
+
+    tearDown(() {
+      cubit.close();
+    });
+
+    test('initial state is FeatureState.initial()', () {
+      expect(cubit.state, equals(const FeatureState.initial()));
+    });
+
+    blocTest<FeatureCubit, FeatureState>(
+      'emits [loading, loaded] when loadData succeeds',
+      build: () {
+        when(() => mockGetFeatureData())
+            .thenAnswer((_) async => mockData);
+        return cubit;
+      },
+      act: (cubit) => cubit.loadData(),
+      expect: () => [
+        const FeatureState.loading(),
+        FeatureState.loaded(mockData),
+      ],
+    );
+
+    blocTest<FeatureCubit, FeatureState>(
+      'emits [loading, error] when loadData fails',
+      build: () {
+        when(() => mockGetFeatureData())
+            .thenThrow(AppFailure.network());
+        return cubit;
+      },
+      act: (cubit) => cubit.loadData(),
+      expect: () => [
+        const FeatureState.loading(),
+        FeatureState.error(AppFailure.network()),
+      ],
+    );
+  });
+}
+```
+
+#### Testing State Transitions with Freezed
+
+When using freezed sealed unions, test state transitions carefully:
+
+```dart
+blocTest<CounterCubit, CounterState>(
+  'increment from initial state emits data with count 1',
+  build: () => CounterCubit(),
+  act: (cubit) => cubit.increment(),
+  expect: () => [
+    const CounterState.data(CounterModel(count: 1)),
+  ],
+);
+
+blocTest<CounterCubit, CounterState>(
+  'increment from data state increments count',
+  build: () => CounterCubit(),
+  seed: () => const CounterState.data(CounterModel(count: 5)),
+  act: (cubit) => cubit.increment(),
+  expect: () => [
+    const CounterState.data(CounterModel(count: 6)),
+  ],
+);
+```
+
+#### Testing Error Handling
+
+Always test error scenarios to ensure proper AppFailure handling:
+
+```dart
+blocTest<FeatureCubit, FeatureState>(
+  'emits error state with network failure',
+  build: () {
+    when(() => mockGetFeatureData())
+        .thenThrow(AppFailure.network(message: 'Connection failed'));
+    return cubit;
+  },
+  act: (cubit) => cubit.loadData(),
+  expect: () => [
+    const FeatureState.loading(),
+    FeatureState.error(
+      AppFailure.network(message: 'Connection failed'),
+    ),
+  ],
+);
+```
+
+#### Testing Multiple Actions
+
+Test complex scenarios with multiple sequential actions:
+
+```dart
+// ✅ PREFERRED: Use cascade notation for multiple method calls
+blocTest<FeatureCubit, FeatureState>(
+  'handles multiple load attempts correctly',
+  build: () {
+    when(() => mockGetFeatureData())
+        .thenAnswer((_) async => mockData);
+    return cubit;
+  },
+  act: (cubit) {
+    cubit
+      ..loadData()
+      ..loadData();
+  },
+  expect: () => [
+    const FeatureState.loading(),
+    FeatureState.loaded(mockData),
+    const FeatureState.loading(),
+    FeatureState.loaded(mockData),
+  ],
+);
+
+// ⚠️ ACCEPTABLE but more verbose: Without cascade
+blocTest<FeatureCubit, FeatureState>(
+  'handles multiple load attempts correctly',
+  build: () {
+    when(() => mockGetFeatureData())
+        .thenAnswer((_) async => mockData);
+    return cubit;
+  },
+  act: (cubit) {
+    cubit.loadData();
+    cubit.loadData();
+  },
+  expect: () => [
+    const FeatureState.loading(),
+    FeatureState.loaded(mockData),
+    const FeatureState.loading(),
+    FeatureState.loaded(mockData),
+  ],
+);
+
+// ✅ ALSO GOOD: Explicit async/await when needed
+blocTest<FeatureCubit, FeatureState>(
+  'handles async operations sequentially',
+  build: () {
+    when(() => mockGetFeatureData())
+        .thenAnswer((_) async => mockData);
+    return cubit;
+  },
+  act: (cubit) async {
+    await cubit.loadData();
+    await cubit.refresh();
+  },
+  expect: () => [
+    const FeatureState.loading(),
+    FeatureState.loaded(mockData),
+    const FeatureState.loading(),
+    FeatureState.loaded(mockData),
+  ],
+);
+```
+
+**Why prefer cascade notation:**
+- More concise and readable
+- Reduces variable repetition
+- Makes sequential operations visually clear
+- Standard Dart idiom for multiple calls on same object
+
+#### Testing with seed() for Initial State
+
+Use `seed()` to set up specific initial states before actions:
+
+```dart
+blocTest<FeatureCubit, FeatureState>(
+  'reset returns to initial state from loaded',
+  build: () => cubit,
+  seed: () => FeatureState.loaded(mockData),
+  act: (cubit) => cubit.reset(),
+  expect: () => [const FeatureState.initial()],
+);
+```
+
+**Key Testing Principles:**
+- Always mock dependencies - never use real implementations
+- Test initial state in a simple `test()` before using `blocTest`
+- Use `seed()` to set up specific starting states
+- Use `act()` to trigger cubit methods
+- Use `expect()` to verify emitted states in order
+- Test all state branches (success, loading, error, empty)
+- Verify that use cases are called with correct parameters using `verify()`
+- Test edge cases and error scenarios
+- Clean up cubits in `tearDown()` with `cubit.close()`
+- **Prefer cascade notation (`..`) for multiple sequential method calls in `act()`**
+- Use `const` for immutable state objects in `expect()`
+
+### Common Patterns
+
+#### Pagination
+
+```dart
+Future<void> loadMore() async {
+  if (state is! _Loaded) return;
+  
+  final currentState = state as _Loaded;
+  if (currentState.hasReachedMax) return;
+  
+  emit(currentState.copyWith(isLoadingMore: true));
+  
+  try {
+    final moreData = await _getFeatureData(page: currentState.page + 1);
+    emit(
+      currentState.copyWith(
+        data: [...currentState.data, ...moreData],
+        page: currentState.page + 1,
+        hasReachedMax: moreData.isEmpty,
+        isLoadingMore: false,
+      ),
+    );
+  } catch (e) {
+    emit(currentState.copyWith(isLoadingMore: false));
+  }
+}
+```
+
+#### Search/Filter
+
+```dart
+Future<void> search(String query) async {
+  emit(const FeatureState.loading());
+  
+  // Debounce if needed
+  await Future<void>.delayed(const Duration(milliseconds: 300));
+  
+  try {
+    final results = await _searchUseCase(query);
+    emit(
+      results.isEmpty
+          ? const FeatureState.empty()
+          : FeatureState.loaded(results),
+    );
+  } catch (e) {
+    emit(FeatureState.error(e.toString()));
+  }
+}
+```
+
+#### Form Validation
+
+```dart
+void updateField(String value) {
+  final validationError = _validateField(value);
+  emit(
+    state.copyWith(
+      fieldValue: value,
+      fieldError: validationError,
+      isValid: validationError == null,
+    ),
+  );
+}
+
+Future<void> submit() async {
+  if (!state.isValid) return;
+  
+  emit(state.copyWith(isSubmitting: true));
+  
+  try {
+    await _submitUseCase(state.fieldValue);
+    emit(state.copyWith(isSubmitting: false, isSubmitted: true));
+  } catch (e) {
+    emit(state.copyWith(
+      isSubmitting: false,
+      submitError: e.toString(),
+    ));
+  }
+}
+```
+
+### Anti-Patterns to Avoid
+
+- Don't implement business logic in Cubits - use use cases
+- Don't access UI context in Cubits
+- Don't emit same state consecutively without changes
+- Don't make Cubit methods return values - use state emissions
+- Don't use Cubits for navigation logic - use BlocListener
+- Don't store widget-specific data in state
+- Don't create circular dependencies between Cubits

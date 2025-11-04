@@ -1,0 +1,15 @@
+{
+    "@@locale": "en",
+    "@@@____APP_FAILURES___START": {},
+    "appFailureNetwork": "Network error. Please check your connection.",
+    "appFailureServer": "Server error. Please try again later.",
+    "appFailureValidation": "Invalid data provided.",
+    "appFailureUnauthorized": "You are not authorized to perform this action.",
+    "appFailureNotFound": "Requested resource not found.",
+    "appFailureCache": "Failed to load cached data.",
+    "appFailureUnexpected": "An unexpected error occurred.",
+    "@@@____APP_FAILURES___END": {},
+    "@@@____COUNTER___START": {},
+    "counterAppBarTitle": "Counter",
+    "@@@____COUNTER___END": {}
+}

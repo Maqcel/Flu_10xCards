@@ -1,0 +1,279 @@
+---
+Rule Type: Auto Attached
+globs: '**/lib/l10n/arb/*.arb'
+---
+
+## Localization (l10n)
+
+### General Guidelines
+
+- All user-facing strings MUST be defined in ARB files, never hardcoded
+- Support multiple languages: English (en) as primary, Polish (pl) as secondary
+- Organize ARB files with section markers for better readability
+- Use context.l10n to access localized strings
+- Never use static strings directly in UI code
+
+### ARB File Structure
+
+#### File Organization
+
+- Primary language: `app_en.arb`
+- Secondary languages: `app_pl.arb`, etc.
+- Located in: `lib/l10n/arb/`
+
+#### Section Markers
+
+Use section markers to group related strings for better organization:
+
+```json
+{
+  "@@locale": "en",
+  "@@@____APP_FAILURES___START": {},
+  "appFailureNetwork": "Network error. Please check your connection.",
+  "appFailureServer": "Server error. Please try again later.",
+  "@@@____APP_FAILURES___END": {},
+  "@@@____BOTTOM_NAVIGATION___START": {},
+  "bottomNavigationForYou": "For you",
+  "bottomNavigationGift": "Gift",
+  "bottomNavigationRewards": "Rewards",
+  "@@@____BOTTOM_NAVIGATION___END": {},
+  "@@@____REGISTER_VOUCHER___START": {},
+  "registerVoucherAppbarTitle": "Register your gift certificate",
+  "registerVoucherBodyText": "To register your gift certificate, please scan the barcode...",
+  "@@@____REGISTER_VOUCHER___END": {}
+}
+```
+
+**Important**: Section markers use the format `@@@____FEATURE_NAME___START` and `@@@____FEATURE_NAME___END` with empty objects `{}`. These markers won't be generated in code but serve as visual separators in ARB files.
+
+### Naming Conventions
+
+#### Key Naming
+
+- Use camelCase for all keys
+- Start with feature/screen name: `featureName` + description
+- Be descriptive and specific
+- Examples:
+  - `loginEmailLabel` - not just `email`
+  - `profileSaveButton` - not just `save`
+  - `settingsLogoutConfirmation` - not just `confirm`
+
+#### Section Names
+
+- Format: `@@@____FEATURE_NAME___START` and `@@@____FEATURE_NAME___END`
+- Use uppercase with underscores for feature names
+- Always include empty object `{}` as value
+- Examples:
+  - `@@@____LOGIN___START` / `@@@____LOGIN___END`
+  - `@@@____HOME___START` / `@@@____HOME___END`
+  - `@@@____SETTINGS___START` / `@@@____SETTINGS___END`
+  - `@@@____BOTTOM_NAVIGATION___START` / `@@@____BOTTOM_NAVIGATION___END`
+
+### Placeholders
+
+For dynamic values, use placeholders with type definitions:
+
+```json
+{
+  "welcomeMessage": "Welcome, {username}!",
+  "@welcomeMessage": {
+    "placeholders": {
+      "username": {
+        "type": "String",
+        "example": "John"
+      }
+    }
+  },
+  "itemsCount": "You have {count} items",
+  "@itemsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "timeRemaining": "{duration} left",
+  "@timeRemaining": {
+    "placeholders": {
+      "duration": {
+        "type": "String",
+        "example": "6 days"
+      }
+    }
+  }
+}
+```
+
+### Usage in Code
+
+#### Basic Usage
+
+```dart
+// Access l10n via context
+final l10n = context.l10n;
+
+// Use in widgets
+Text(l10n.loginEmailLabel)
+Text(l10n.profileSaveButton)
+AppBar(title: Text(l10n.settingsTitle))
+```
+
+#### With Placeholders
+
+```dart
+Text(l10n.welcomeMessage('John'))
+Text(l10n.itemsCount(5))
+Text(l10n.timeRemaining('6 days'))
+```
+
+#### With AppFailure
+
+```dart
+// In error display widget
+BlocBuilder<FeatureCubit, FeatureState>(
+  builder: (context, state) {
+    return state.when(
+      error: (failure) => Text(failure.userMessage(context)),
+      // other states...
+    );
+  },
+)
+
+// In SnackBar
+ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(content: Text(failure.userMessage(context))),
+);
+```
+
+### Feature-Specific Strings
+
+Group all strings for a feature together:
+
+```json
+{
+  "@@@____REGISTER_VOUCHER___START": {},
+  "registerVoucherAppbarTitle": "Register your gift certificate",
+  "registerVoucherBodyText": "To register your gift certificate, please scan the barcode on the back of the gift certificate or bottom of your e-gift or gift card certificate.\n\nYou can also enter each digit manually.",
+  "registerVoucherInfoChipText": "Where can I find this?",
+  "registerVoucherMainButtonText": "Scan barcode",
+  "registerVoucherManualEntryButtonText": "Enter code manually",
+  "registerVoucherInfoModalTitle": "Barcode\ninformation",
+  "registerVoucherSuccessMessage": "Voucher registered successfully!",
+  "registerVoucherErrorInvalid": "Invalid voucher code",
+  "@@@____REGISTER_VOUCHER___END": {}
+}
+```
+
+### Common Strings
+
+Create a common section for reusable strings:
+
+```json
+{
+  "@@@____COMMON___START": {},
+  "commonOk": "OK",
+  "commonCancel": "Cancel",
+  "commonSave": "Save",
+  "commonDelete": "Delete",
+  "commonEdit": "Edit",
+  "commonClose": "Close",
+  "commonRetry": "Retry",
+  "commonLoading": "Loading...",
+  "commonError": "Error",
+  "commonSuccess": "Success",
+  "commonConfirm": "Confirm",
+  "commonYes": "Yes",
+  "commonNo": "No",
+  "commonTimeLeft": "{duration} left",
+  "@commonTimeLeft": {
+    "placeholders": {
+      "duration": {
+        "type": "String",
+        "example": "6 days"
+      }
+    }
+  },
+  "@@@____COMMON___END": {}
+}
+```
+
+### Pluralization
+
+For strings that need pluralization:
+
+```json
+{
+  "itemCount": "{count, plural, =0{No items} =1{1 item} other{{count} items}}",
+  "@itemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+}
+```
+
+### Long Text / Multi-line
+
+Use `\n` for line breaks in ARB files:
+
+```json
+{
+  "termsAndConditions": "By continuing, you agree to our Terms of Service.\n\nYou also agree to our Privacy Policy and Cookie Policy."
+}
+```
+
+### Best Practices
+
+1. **Never hardcode strings** - Always use l10n, even for English-only apps
+2. **Keep strings feature-specific** - Prefix with feature name
+3. **Use section markers** - Group related strings together
+4. **Document placeholders** - Always include type and example
+5. **Be descriptive** - Key names should be self-explanatory
+6. **Consistency** - Use consistent naming patterns across the app
+7. **Translation-ready** - Write English strings that are easy to translate
+8. **Avoid concatenation** - Use placeholders instead of string concatenation
+9. **Context matters** - Same word can have different translations in different contexts
+10. **Review translations** - Have native speakers review translations
+
+### Testing Localization
+
+```dart
+// In tests, provide localization
+testWidgets('displays localized text', (tester) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: YourWidget(),
+    ),
+  );
+  
+  expect(find.text('Expected localized text'), findsOneWidget);
+});
+```
+
+### Generating Localization Files
+
+After modifying ARB files, regenerate:
+
+```bash
+flutter gen-l10n
+```
+
+This generates files in `lib/l10n/gen/` which should not be edited manually.
+
+### Anti-Patterns to Avoid
+
+- ❌ Don't hardcode strings: `Text('Login')` 
+- ✅ Use l10n: `Text(l10n.loginTitle)`
+- ❌ Don't concatenate: `Text('Hello ' + name)`
+- ✅ Use placeholders: `Text(l10n.welcomeMessage(name))`
+- ❌ Don't use generic keys: `Text(l10n.button1)`
+- ✅ Use descriptive keys: `Text(l10n.loginSubmitButton)`
+- ❌ Don't mix languages: Having both English and Polish strings in code
+- ✅ All languages in ARB: One source of truth for all translations
+- ❌ Don't skip section markers: Hard to navigate large ARB files
+- ✅ Use sections: Organized and easy to find strings

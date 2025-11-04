@@ -1,0 +1,380 @@
+---
+Rule Type: Auto Attached
+globs: '**/lib/features/**/data/service/**_service.dart, **/lib/features/**/data/data_source/**_data_source.dart'
+---
+
+## Service / Data Source Layer
+
+### General Guidelines
+
+- Services encapsulate external data operations (API, Database, Storage)
+- Data sources are concrete implementations of data access
+- Keep services focused on single responsibility
+- Handle errors at this layer and convert to domain exceptions
+- Services should be stateless
+
+### Service Structure
+
+#### Service File (_service.dart)
+
+- Define abstract interface for the service
+- Implement concrete service class with @LazySingleton() or @injectable
+- Inject data sources via constructor
+- Transform DTOs to domain models using extension methods
+- Handle exceptions and convert to AppFailure
+- Example structure:
+```dart
+import 'package:injectable/injectable.dart';
+
+abstract class FeatureService {
+  Future<FeatureModel> getFeatureData(String id);
+  Future<List<FeatureModel>> getAllFeatures();
+  Future<void> saveFeature(FeatureModel feature);
+  Future<void> deleteFeature(String id);
+}
+
+@LazySingleton(as: FeatureService)
+class FeatureServiceImpl implements FeatureService {
+  FeatureServiceImpl({
+    required FeatureServiceDataSource dataSource,
+  }) : _dataSource = dataSource;
+
+  final FeatureServiceDataSource _dataSource;
+
+  @override
+  Future<FeatureModel> getFeatureData(String id) async {
+    try {
+      final dto = await _dataSource.fetchFeature(id);
+      return dto.toDomain();
+    } on DioException catch (e) {
+      throw AppFailure.network(message: 'Failed to fetch feature: ${e.message}');
+    } catch (e) {
+      throw AppFailure.unexpected(message: 'Unexpected error: $e');
+    }
+  }
+
+  @override
+  Future<List<FeatureModel>> getAllFeatures() async {
+    try {
+      final dtos = await _dataSource.fetchAllFeatures();
+      return dtos.map((dto) => dto.toDomain()).toList();
+    } catch (e) {
+      throw AppFailure.network(message: 'Failed to fetch features: $e');
+    }
+  }
+
+  @override
+  Future<void> saveFeature(FeatureModel feature) async {
+    try {
+      final dto = feature.toDto();
+      await _dataSource.saveFeature(dto);
+    } catch (e) {
+      throw AppFailure.network(message: 'Failed to save feature: $e');
+    }
+  }
+
+  @override
+  Future<void> deleteFeature(String id) async {
+    try {
+      await _dataSource.deleteFeature(id);
+    } catch (e) {
+      throw AppFailure.network(message: 'Failed to delete feature: $e');
+    }
+  }
+}
+```
+
+#### Data Source File (_data_source.dart)
+
+- Use Retrofit for API clients
+- Define abstract class with @RestApi() annotation
+- Use Retrofit annotations (@GET, @POST, @PUT, @DELETE, etc.)
+- Return DTOs, not domain models
+- Create @module class for dependency injection with injectable
+- Handle low-level errors (network, parsing, storage)
+- Keep platform/package specific code here
+- Example structure:
+```dart
+import 'package:dio/dio.dart';
+import 'package:injectable/injectable.dart';
+import 'package:retrofit/retrofit.dart';
+
+part 'feature_service_data_source.g.dart';
+
+@RestApi()
+abstract class FeatureServiceDataSource {
+  factory FeatureServiceDataSource(Dio dio, {String baseUrl}) =
+      _FeatureServiceDataSource;
+
+  @GET('/api/features/{id}')
+  Future<FeatureDto> fetchFeature(@Path('id') String id);
+
+  @GET('/api/features')
+  Future<List<FeatureDto>> fetchAllFeatures();
+
+  @POST('/api/features')
+  Future<void> saveFeature(@Body() FeatureDto feature);
+
+  @DELETE('/api/features/{id}')
+  Future<void> deleteFeature(@Path('id') String id);
+}
+
+@module
+abstract class FeatureServiceModule {
+  @LazySingleton()
+  FeatureServiceDataSource provideFeatureServiceDataSource(
+    @Named('baseUrl') String baseUrl,
+    @Named('mainDio') Dio dio,
+  ) =>
+      FeatureServiceDataSource(dio, baseUrl: baseUrl);
+}
+```
+
+### Data Layer Best Practices
+
+#### Separation of Concerns
+
+- Data sources handle raw data access
+- Services orchestrate data sources and perform transformations
+- Keep HTTP/database logic isolated in data sources
+- Services should not know about HTTP clients or database implementations
+
+#### DTO (Data Transfer Object) Pattern
+
+- Create separate DTO classes for API/DB responses in data/dto directory
+- Use freezed with json_serializable for DTO models
+- Always use both freezed and json_serializable annotations
+- Transform DTOs to domain models in services or use cases
+- Keep DTOs in data layer, never expose to domain/presentation
+- Use @JsonKey for field name mapping
+- Example DTO:
+```dart
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'feature_dto.freezed.dart';
+part 'feature_dto.g.dart';
+
+@freezed
+abstract class FeatureDto with _$FeatureDto {
+  const factory FeatureDto({
+    required String id,
+    required String name,
+    required String description,
+    @JsonKey(name: 'created_at') DateTime? createdAt,
+  }) = _FeatureDto;
+
+  factory FeatureDto.fromJson(Map<String, dynamic> json) =>
+      _$FeatureDtoFromJson(json);
+}
+```
+
+- Implement extension methods for domain conversion:
+```dart
+extension FeatureDtoX on FeatureDto {
+  FeatureModel toDomain() {
+    return FeatureModel(
+      id: id,
+      name: name,
+      description: description,
+      createdAt: createdAt ?? DateTime.now(),
+    );
+  }
+}
+```
+
+### Error Handling
+
+#### AppFailure Pattern
+
+- Use AppFailure sealed class for all domain errors (defined in /lib/app/failures)
+- Convert low-level exceptions to AppFailure instances
+- Provide meaningful error messages
+- Example AppFailure:
+```dart
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'app_failure.freezed.dart';
+
+@freezed
+abstract class AppFailure with _$AppFailure {
+  const factory AppFailure.network({String? message}) = _Network;
+  const factory AppFailure.server({String? message}) = _Server;
+  const factory AppFailure.validation({String? message}) = _Validation;
+  const factory AppFailure.unauthorized({String? message}) = _Unauthorized;
+  const factory AppFailure.notFound({String? message}) = _NotFound;
+  const factory AppFailure.unexpected({String? message}) = _Unexpected;
+}
+```
+
+#### Error Recovery
+
+- Implement retry logic for transient failures
+- Use exponential backoff for retries
+- Provide fallback to cached data when appropriate
+- Convert DioException to AppFailure
+- Example:
+```dart
+Future<FeatureModel> getFeatureWithRetry(String id) async {
+  int attempts = 0;
+  const maxAttempts = 3;
+  
+  while (attempts < maxAttempts) {
+    try {
+      return await getFeatureData(id);
+    } on DioException catch (e) {
+      attempts++;
+      if (attempts >= maxAttempts) {
+        throw AppFailure.network(message: 'Failed after $maxAttempts attempts');
+      }
+      await Future<void>.delayed(Duration(seconds: attempts * 2));
+    }
+  }
+  
+  throw AppFailure.unexpected(message: 'Failed after $maxAttempts attempts');
+}
+```
+
+### API Integration
+
+#### HTTP Client Setup
+
+- Use dio or http package
+- Configure base URL, headers, timeouts
+- Implement interceptors for authentication, logging
+- Handle different HTTP methods appropriately
+- Example configuration:
+```dart
+Dio _createDio() {
+  final dio = Dio(
+    BaseOptions(
+      baseUrl: 'https://api.example.com',
+      connectTimeout: const Duration(seconds: 5),
+      receiveTimeout: const Duration(seconds: 3),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    ),
+  );
+
+  dio.interceptors.add(LogInterceptor(
+    requestBody: true,
+    responseBody: true,
+  ));
+
+  dio.interceptors.add(InterceptorsWrapper(
+    onRequest: (options, handler) async {
+      final token = await _getAuthToken();
+      options.headers['Authorization'] = 'Bearer $token';
+      handler.next(options);
+    },
+  ));
+
+  return dio;
+}
+```
+
+### Local Storage
+
+#### Database (Drift)
+
+- Use appropriate storage solution for data type
+- Implement proper indexing for queries
+- Handle migrations properly
+
+### Caching Strategies
+
+#### Cache-First Strategy
+
+```dart
+@override
+Future<FeatureModel> getFeatureData(String id) async {
+  try {
+    // Try cache first
+    final cached = await _cacheDataSource.fetchFeature(id);
+    return cached.toDomain();
+  } on CacheException {
+    // Fall back to remote
+    try {
+      final remote = await _remoteDataSource.fetchFeature(id);
+      // Update cache
+      await _cacheDataSource.saveFeature(remote);
+      return remote.toDomain();
+    } catch (e) {
+      throw ServiceException('Failed to fetch feature: $e');
+    }
+  }
+}
+```
+
+#### Network-First with Stale Cache
+
+```dart
+@override
+Future<FeatureModel> getFeatureData(String id) async {
+  try {
+    final remote = await _remoteDataSource.fetchFeature(id);
+    await _cacheDataSource.saveFeature(remote);
+    return remote.toDomain();
+  } on NetworkException {
+    // Fall back to cache if network fails
+    try {
+      final cached = await _cacheDataSource.fetchFeature(id);
+      return cached.toDomain();
+    } catch (e) {
+      throw ServiceException('No data available');
+    }
+  }
+}
+```
+
+### Testing Considerations
+
+- Mock data sources in service tests
+- Use fake implementations for integration tests
+- Test error scenarios thoroughly
+- Verify DTO to model transformations
+- Example test:
+```dart
+group('FeatureService', () {
+  late FeatureService service;
+  late MockFeatureDataSource mockDataSource;
+
+  setUp(() {
+    mockDataSource = MockFeatureDataSource();
+    service = FeatureServiceImpl(dataSource: mockDataSource);
+  });
+
+  test('getFeatureData returns model when successful', () async {
+    when(() => mockDataSource.fetchFeature(any()))
+        .thenAnswer((_) async => testFeatureDto);
+
+    final result = await service.getFeatureData('1');
+
+    expect(result, isA<FeatureModel>());
+    expect(result.id, testFeatureDto.id);
+    verify(() => mockDataSource.fetchFeature('1')).called(1);
+  });
+
+  test('getFeatureData throws ServiceException on error', () async {
+    when(() => mockDataSource.fetchFeature(any()))
+        .thenThrow(NetworkException('Network error'));
+
+    expect(
+      () => service.getFeatureData('1'),
+      throwsA(isA<ServiceException>()),
+    );
+  });
+});
+```
+
+### Anti-Patterns to Avoid
+
+- Don't expose DTOs to domain or presentation layers
+- Don't implement business logic in services
+- Don't mix multiple data sources without abstraction
+- Don't ignore error handling
+- Don't hardcode API endpoints in data sources
+- Don't make services stateful
+- Don't perform UI operations in services
+- Don't use domain models in data source layer

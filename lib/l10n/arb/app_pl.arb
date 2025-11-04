@@ -1,0 +1,15 @@
+{
+    "@@locale": "pl",
+    "@@@____APP_FAILURES___START": {},
+    "appFailureNetwork": "Błąd sieci. Sprawdź połączenie z internetem.",
+    "appFailureServer": "Błąd serwera. Spróbuj ponownie później.",
+    "appFailureValidation": "Nieprawidłowe dane.",
+    "appFailureUnauthorized": "Nie masz uprawnień do wykonania tej akcji.",
+    "appFailureNotFound": "Nie znaleziono żądanego zasobu.",
+    "appFailureCache": "Nie udało się załadować danych z pamięci podręcznej.",
+    "appFailureUnexpected": "Wystąpił nieoczekiwany błąd.",
+    "@@@____APP_FAILURES___END": {},
+    "@@@____COUNTER___START": {},
+    "counterAppBarTitle": "Licznik",
+    "@@@____COUNTER___END": {}
+}

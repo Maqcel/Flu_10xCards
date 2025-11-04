@@ -1,0 +1,440 @@
+---
+Rule Type: Auto Attached
+globs: '**/lib/features/**/presentation/view/**_page.dart, **/lib/features/**/presentation/view/**_view.dart, **/lib/features/**/presentation/widgets/*.dart'
+---
+
+## Page / View / Widgets
+
+### General Guidelines
+
+- Pages are responsible for providing dependencies (Cubits) via BlocProvider
+- Use @RoutePage() annotation with auto_route
+- Implement AutoRouteWrapper for dependency injection
+- Views contain the actual UI implementation and listen to state changes
+- Views should be logic-free - pass callbacks from page or cubit
+- Widgets are reusable components specific to the feature or app-wide
+- Keep widget trees shallow and readable
+- Extract complex widget logic into separate widget classes
+- Use AppDimensions for all spacing and sizing (no magic numbers)
+- Implement ExtensionMixin for shared functionality
+
+### Page Structure
+
+#### Page File (_page.dart)
+
+- Should be a StatelessWidget or StatefulWidget based on needs
+- Use @RoutePage() annotation for auto_route
+- Implement AutoRouteWrapper interface for dependency injection
+- Implement ExtensionMixin for shared utilities
+- Responsible for dependency injection using BlocProvider with get_it
+- Should not contain UI logic - delegate to View
+- Can initialize cubit in wrappedRoute or initState
+- Example structure (StatelessWidget):
+```dart
+@RoutePage()
+class FeaturePage extends StatelessWidget
+    implements AutoRouteWrapper, ExtensionMixin {
+  const FeaturePage({super.key});
+
+  @override
+  Widget wrappedRoute(BuildContext context) => BlocProvider<FeatureCubit>(
+    create: (BuildContext context) => getIt<FeatureCubit>()..init(),
+    child: this,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return const FeatureView();
+  }
+}
+```
+
+- Example structure (StatefulWidget with analytics):
+```dart
+@RoutePage()
+class WalletPage extends StatefulWidget
+    implements AutoRouteWrapper, ExtensionMixin {
+  const WalletPage({super.key});
+
+  @override
+  Widget wrappedRoute(BuildContext context) => BlocProvider<WalletCubit>(
+        create: (BuildContext context) => getIt<WalletCubit>(),
+        child: this,
+      );
+
+  @override
+  State<WalletPage> createState() => _WalletPageState();
+}
+
+class _WalletPageState extends State<WalletPage> {
+  @override
+  void initState() {
+    super.initState();
+    
+    // Track analytics event
+    trackEvent(
+      type: AnalyticsEventType.walletPageOpened,
+      data: EmptyBodyAnalyticsEvent(),
+    );
+    
+    // Or initialize cubit here if needed
+    // context.read<WalletCubit>().init();
+  }
+
+  @override
+  Widget build(BuildContext context) => BlocConsumer<WalletCubit, WalletState>(
+        buildWhen: _buildWhen,
+        builder: _builder,
+        listener: _listener,
+      );
+      
+  bool _buildWhen(WalletState previous, WalletState current) {
+    // Define when to rebuild
+    return true;
+  }
+  
+  Widget _builder(BuildContext context, WalletState state) {
+    return const WalletView();
+  }
+  
+  void _listener(BuildContext context, WalletState state) {
+    // Handle side effects
+  }
+}
+```
+
+#### View File (_view.dart)
+
+- Should be a StatelessWidget (avoid StatefulWidget unless absolutely necessary)
+- Contains the Scaffold and main UI structure
+- Uses BlocBuilder, BlocListener, or BlocConsumer for state management
+- Should be completely logic-free - all callbacks passed via constructor or from cubit
+- Delegates complex UI sections to widgets
+- Use AppDimensions for all spacing and sizing
+- Example structure:
+```dart
+class FeatureView extends StatelessWidget {
+  const FeatureView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Feature'),
+        centerTitle: true,
+      ),
+      body: BlocBuilder<FeatureCubit, FeatureState>(
+        builder: (context, state) {
+          return state.when(
+            initial: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            loaded: (data) => FeatureLoadedWidget(
+              data: data,
+              onItemTap: context.read<FeatureCubit>().onItemTap,
+            ),
+            error: (failure) => ErrorWidget(
+              failure: failure,
+              onRetry: context.read<FeatureCubit>().loadData,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+```
+
+- Example with padding using AppDimensions:
+```dart
+class FeatureView extends StatelessWidget {
+  const FeatureView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Padding(
+        padding: EdgeInsets.all(AppDimensions.padding16),
+        child: Column(
+          spacing: AppDimensions.spacing24,
+          children: [
+            SizedBox(height: AppDimensions.h64),
+            FeatureHeaderWidget(),
+            Expanded(
+              child: BlocBuilder<FeatureCubit, FeatureState>(
+                builder: (context, state) => FeatureListWidget(state: state),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+#### Widget Files (feature-specific and common)
+
+- Should be const StatelessWidget when possible
+- Accept data and callbacks via constructor parameters
+- Feature-specific widgets go in features/.../presentation/widgets/
+- Reusable widgets go in lib/presentation/common_widgets/
+- Keep focused on single responsibility
+- Use meaningful names that describe the widget's purpose
+- Always use AppDimensions for spacing/sizing
+- Example feature widget:
+```dart
+class FeatureItemWidget extends StatelessWidget {
+  const FeatureItemWidget({
+    required this.item,
+    required this.onTap,
+    super.key,
+  });
+
+  final FeatureModel item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(AppDimensions.padding16),
+        margin: EdgeInsets.only(bottom: AppDimensions.margin12),
+        decoration: BoxDecoration(
+          color: AppColors.cardBackground,
+          borderRadius: BorderRadius.circular(AppDimensions.radius12),
+        ),
+        child: Text(
+          item.name,
+          style: AppTextStyles.bodyMedium,
+        ),
+      ),
+    );
+  }
+}
+```
+
+### State Handling Guidelines
+
+- Use BlocBuilder for rebuilding UI based on state
+- Use BlocListener for side effects (navigation, snackbars, dialogs)
+- Use BlocConsumer when both builder and listener are needed
+- Use BlocSelector for optimized rebuilds of specific state properties
+- Always handle all possible states (loading, success, error, empty)
+
+### UI Best Practices
+
+- Use const constructors wherever possible for performance
+- Use AppDimensions for all spacing, sizing, and dimensions
+- Use AppColors from theme for all colors
+- Use AppTextStyles for all text styling
+- Use .w extension for responsive widths (e.g., 100.w)
+- Use .h extension for responsive heights (e.g., 50.h)
+- Use .sp extension for responsive font sizes (e.g., 16.sp)
+- Avoid magic numbers completely - define in AppDimensions
+- Use MediaQuery.of(context) sparingly - prefer LayoutBuilder for responsive design
+- Implement proper keyboard handling and focus management
+- Use SizedBox for spacing instead of Padding when possible
+- Implement proper scroll physics and behavior
+- Examples:
+```dart
+// Good - using AppDimensions
+Container(
+  height: AppDimensions.h64,
+  width: AppDimensions.w200,
+  padding: EdgeInsets.all(AppDimensions.padding16),
+  margin: EdgeInsets.symmetric(
+    horizontal: AppDimensions.margin24,
+    vertical: AppDimensions.margin12,
+  ),
+  child: Text(
+    'Hello',
+    style: AppTextStyles.headline.copyWith(
+      fontSize: AppDimensions.fontSize24,
+    ),
+  ),
+)
+
+// Bad - magic numbers
+Container(
+  height: 64,
+  width: 200,
+  padding: EdgeInsets.all(16),
+  child: Text('Hello', style: TextStyle(fontSize: 24)),
+)
+```
+
+### Accessibility Guidelines
+
+- Provide Semantics widgets for screen readers
+- Use appropriate semantic labels for interactive elements
+- Ensure sufficient color contrast (WCAG AA compliance)
+- Support both light and dark themes
+- Make touch targets at least 48x48 logical pixels
+- Provide alternative text for images using semanticLabel
+
+### Navigation Guidelines
+
+- Use @RoutePage() annotation on page widgets
+- Implement AutoRouteWrapper for dependency injection
+- Use context.router.push() or context.router.replace() for navigation
+- Pass data via constructor parameters
+- Handle back navigation properly with context.router.pop()
+- Use auto_route generated routes
+- Example navigation:
+```dart
+// Navigate to feature page
+context.router.push(const FeatureRoute());
+
+// Navigate with parameters
+context.router.push(FeatureRoute(id: '123'));
+
+// Replace current route
+context.router.replace(const HomeRoute());
+
+// Pop current route
+context.router.pop();
+
+// Pop with result
+context.router.pop(result);
+```
+
+### Error Handling
+
+- Display user-friendly error messages
+- Provide retry mechanisms for failed operations
+- Use SnackBar for transient messages
+- Use Dialog for important errors requiring user acknowledgment
+- Log errors for debugging purposes
+
+### Performance Optimization
+
+- Use const widgets extensively
+- Implement RepaintBoundary for expensive widgets
+- Use ListView.builder for long lists
+- Implement pagination for large data sets
+- Avoid rebuilding entire widget trees - be specific with BlocSelector
+- Profile widget rebuilds using Flutter DevTools
+
+### Testing Considerations
+
+- Ensure all widgets are testable (avoid tight coupling)
+- Provide key properties for important widgets to facilitate testing
+- Keep business logic in Cubits, not in widgets
+- Mock dependencies properly in widget tests
+
+#### Testing Page Widgets
+
+Pages require special handling in tests because they use `getIt<T>()` for dependency injection:
+
+**Test Structure for Pages:**
+```dart
+import 'package:xcards/app/di/injection.dart';
+
+void main() {
+  group('FeaturePage', () {
+    late FeatureCubit mockFeatureCubit;
+
+    setUp(() {
+      // Create mock instance
+      mockFeatureCubit = MockFeatureCubit();
+      
+      // Register in GetIt for dependency injection
+      getIt.registerFactory<FeatureCubit>(() => mockFeatureCubit);
+    });
+
+    tearDown(() {
+      // Clean up GetIt registration to prevent test interference
+      getIt.unregister<FeatureCubit>();
+    });
+
+    testWidgets('renders FeatureView', (tester) async {
+      // Mock initial state before pumping widget
+      when(() => mockFeatureCubit.state).thenReturn(FeatureState.initial());
+      
+      await tester.pumpApp(FeaturePage());
+      expect(find.byType(FeatureView), findsOneWidget);
+    });
+    
+    testWidgets('initializes cubit on creation', (tester) async {
+      when(() => mockFeatureCubit.state).thenReturn(FeatureState.initial());
+      when(() => mockFeatureCubit.init()).thenReturn(null);
+      
+      await tester.pumpApp(FeaturePage());
+      
+      // Verify init was called if page calls it in wrappedRoute
+      verify(() => mockFeatureCubit.init()).called(1);
+    });
+  });
+}
+```
+
+#### Testing View Widgets
+
+Views can be tested without GetIt registration by providing mocked cubit directly:
+
+**Test Structure for Views:**
+```dart
+void main() {
+  group('FeatureView', () {
+    late FeatureCubit mockFeatureCubit;
+
+    setUp(() {
+      mockFeatureCubit = MockFeatureCubit();
+    });
+
+    testWidgets('displays loading indicator in loading state', (tester) async {
+      when(() => mockFeatureCubit.state).thenReturn(FeatureState.loading());
+      
+      await tester.pumpApp(
+        BlocProvider.value(
+          value: mockFeatureCubit,
+          child: const FeatureView(),
+        ),
+      );
+      
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+    
+    testWidgets('displays data when state is loaded', (tester) async {
+      final testData = FeatureModel(id: '1', name: 'Test');
+      when(() => mockFeatureCubit.state)
+          .thenReturn(FeatureState.loaded(testData));
+      
+      await tester.pumpApp(
+        BlocProvider.value(
+          value: mockFeatureCubit,
+          child: const FeatureView(),
+        ),
+      );
+      
+      expect(find.text('Test'), findsOneWidget);
+    });
+    
+    testWidgets('calls cubit method when button is tapped', (tester) async {
+      when(() => mockFeatureCubit.state).thenReturn(FeatureState.initial());
+      when(() => mockFeatureCubit.loadData()).thenReturn(null);
+      
+      await tester.pumpApp(
+        BlocProvider.value(
+          value: mockFeatureCubit,
+          child: const FeatureView(),
+        ),
+      );
+      
+      await tester.tap(find.byIcon(Icons.refresh));
+      verify(() => mockFeatureCubit.loadData()).called(1);
+    });
+  });
+}
+```
+
+**Key Testing Principles:**
+- Separate Page tests from View tests for clarity
+- Page tests verify DI integration and widget composition
+- View tests focus on UI behavior and state rendering
+- Always mock cubit state before calling `pumpApp()`
+- Use `when().thenReturn()` for stubbing method responses
+- Use `verify().called(n)` to verify cubit method calls
+- Test all state variations (initial, loading, loaded, error)
+- Test user interactions (button taps, text input, gestures)
