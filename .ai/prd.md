@@ -1,7 +1,7 @@
 # Dokument wymagań produktu (PRD) – 10x-cards
 
 ## 1. Przegląd produktu
-Projekt 10x-cards ma na celu umożliwienie użytkownikom szybkiego tworzenia i zarządzania zestawami fiszek edukacyjnych. Aplikacja wykorzystuje modele LLM (poprzez API) do generowania sugestii fiszek na podstawie dostarczonego tekstu.
+Projekt 10x-cards ma na celu umożliwienie użytkownikom szybkiego tworzenia i zarządzania fiszkami edukacyjnymi. Aplikacja wykorzystuje modele LLM (poprzez API) do generowania sugestii fiszek na podstawie dostarczonego tekstu.
 
 ## 2. Problem użytkownika
 Manualne tworzenie wysokiej jakości fiszek wymaga dużych nakładów czasu i wysiłku, co zniechęca do korzystania z efektywnej metody nauki, jaką jest spaced repetition. Celem rozwiązania jest skrócenie czasu potrzebnego na tworzenie odpowiednich pytań i odpowiedzi oraz uproszczenie procesu zarządzania materiałem do nauki.
@@ -76,7 +76,7 @@ Kryteria akceptacji:
 
 ID: US-004
 Tytuł: Przegląd i zatwierdzanie propozycji fiszek
-Opis: Jako zalogowany użytkownik chcę móc przeglądać wygenerowane fiszki i decydować, które z nich chcę dodać do mojego zestawu, aby zachować tylko przydatne pytania i odpowiedzi.
+Opis: Jako zalogowany użytkownik chcę móc przeglądać wygenerowane fiszki i decydować, które z nich chcę zapisać, aby zachować tylko przydatne pytania i odpowiedzi.
 Kryteria akceptacji:
 - Lista wygenerowanych fiszek jest wyświetlana pod formularzem generowania.
 - Przy każdej fiszce znajduje się przycisk pozwalający na jej zatwierdzenie, edycję lub odrzucenie.
@@ -92,7 +92,7 @@ Kryteria akceptacji:
 
 ID: US-006
 Tytuł: Usuwanie fiszek
-Opis: Jako zalogowany użytkownik chcę usuwać zbędne fiszki, aby zachować porządek w moim zestawie.
+Opis: Jako zalogowany użytkownik chcę usuwać zbędne fiszki, aby zachować porządek w mojej kolekcji.
 Kryteria akceptacji:
 - Przy każdej fiszce na liście (w widoku "Moje fiszki") widoczna jest opcja usunięcia.
 - Po wybraniu usuwania użytkownik musi potwierdzić operację, zanim fiszka zostanie trwale usunięta.
