@@ -1,7 +1,6 @@
 ---
-Rule Type: Always
+alwaysApply: true
 ---
-
 # AI Rules for 10xCards
 
 A Flutter application for spaced repetition learning using flashcards.

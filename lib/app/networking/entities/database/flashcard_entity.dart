@@ -18,13 +18,13 @@ abstract class FlashcardEntity with _$FlashcardEntity {
     required String front,
     required String back,
     required String source,
-    @JsonKey(name: 'generation_id') String? generationId,
     @JsonKey(name: 'created_at')
     @DateTimeConverter()
     required DateTime createdAt,
     @JsonKey(name: 'updated_at')
     @DateTimeConverter()
     required DateTime updatedAt,
+    @JsonKey(name: 'generation_id') String? generationId,
   }) = _FlashcardEntity;
 
   factory FlashcardEntity.fromJson(Map<String, dynamic> json) =>
