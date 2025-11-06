@@ -120,3 +120,8 @@ lib/l10n/gen/
 **/generated
 **/*.freezed.dart
 **/*.config.dart
+
+# Environment files
+.env.development
+.env.staging
+.env.production

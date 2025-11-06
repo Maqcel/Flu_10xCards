@@ -41,7 +41,7 @@ Future<void> bootstrap(
   Bloc.observer = const AppBlocObserver();
 
   // Initialize dependency injection
-  configureDependencies();
+  await configureDependencies();
 
   // Add cross-flavor configuration here
 

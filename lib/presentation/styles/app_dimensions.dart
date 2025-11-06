@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 /// App-wide dimensions using flutter_screenutil for responsive design.
-/// All dimensions should be accessed through this class to maintain consistency.
+/// All dimensions should be accessed through this class to maintain consistency
 /// Never use magic numbers directly in UI code.
 abstract class AppDimensions {
   // Mobile design dimensions reference: 375 x 812 (iPhone X)

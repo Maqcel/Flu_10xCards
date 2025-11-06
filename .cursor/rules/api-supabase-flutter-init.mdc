@@ -1,0 +1,1064 @@
+---
+alwaysApply: false
+---
+
+# Supabase Flutter Initialization
+
+This document provides a reproducible guide to create the necessary file structure for integrating Supabase with your Flutter project using clean architecture principles.
+
+## Prerequisites
+
+- `supabase_flutter` package installed (check `pubspec.yaml`)
+- `flutter_secure_storage` package installed for storing credentials
+- `injectable` and `get_it` packages for dependency injection
+- `envied` and `envied_generator` packages for environment variable management
+- Ensure that `/supabase/config.toml` exists with proper configuration
+- Environment-specific Supabase URL and anonymous key
+
+**IMPORTANT:** Check prerequisites before performing actions below. If they're not met, stop and ask the user for the fix.
+
+## Installation
+
+Add required packages to `pubspec.yaml`:
+
+```yaml
+dependencies:
+  supabase_flutter: ^2.10.3
+  envied: ^1.3.1
+
+dev_dependencies:
+  envied_generator: ^1.3.1
+  build_runner: ^2.7.0
+```
+
+## File Structure and Setup
+
+### 1. Environment Configuration with Envied
+
+Create environment variable files for each flavor in the project root:
+
+**`.env.development`**
+```env
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_ANON_KEY=your_local_anon_key
+```
+
+**`.env.staging`**
+```env
+SUPABASE_URL=https://your-project-staging.supabase.co
+SUPABASE_ANON_KEY=your_staging_anon_key
+```
+
+**`.env.production`**
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_production_anon_key
+```
+
+**IMPORTANT:** Add `.env.*` files to your `.gitignore`:
+
+```gitignore
+# Environment files
+.env.development
+.env.staging
+.env.production
+```
+
+### 2. Create Env Class with Envied
+
+Create the file `/lib/app/config/env.dart`:
+
+```dart
+import 'package:envied/envied.dart';
+
+part 'env.g.dart';
+
+@Envied(path: '.env.development', obfuscate: true)
+abstract class Env {
+  @EnviedField(varName: 'SUPABASE_URL')
+  static final String supabaseUrl = _Env.supabaseUrl;
+
+  @EnviedField(varName: 'SUPABASE_ANON_KEY')
+  static final String supabaseAnonKey = _Env.supabaseAnonKey;
+}
+```
+
+**Notes:**
+- Use `obfuscate: true` to make it harder to extract secrets (though not completely secure)
+- Use `static final` (not `static const`) when using obfuscation
+- Change the `path` parameter based on the flavor you're building for
+- Generate the code with: `dart run build_runner build --delete-conflicting-outputs`
+
+**For multiple flavors**, create separate Env classes:
+
+```dart
+import 'package:envied/envied.dart';
+
+part 'env.g.dart';
+
+// Development environment
+@Envied(path: '.env.development', name: 'DevelopmentEnv', obfuscate: true)
+abstract class DevelopmentEnv {
+  @EnviedField(varName: 'SUPABASE_URL')
+  static final String supabaseUrl = _DevelopmentEnv.supabaseUrl;
+
+  @EnviedField(varName: 'SUPABASE_ANON_KEY')
+  static final String supabaseAnonKey = _DevelopmentEnv.supabaseAnonKey;
+}
+
+// Staging environment
+@Envied(path: '.env.staging', name: 'StagingEnv', obfuscate: true)
+abstract class StagingEnv {
+  @EnviedField(varName: 'SUPABASE_URL')
+  static final String supabaseUrl = _StagingEnv.supabaseUrl;
+
+  @EnviedField(varName: 'SUPABASE_ANON_KEY')
+  static final String supabaseAnonKey = _StagingEnv.supabaseAnonKey;
+}
+
+// Production environment
+@Envied(path: '.env.production', name: 'ProductionEnv', obfuscate: true)
+abstract class ProductionEnv {
+  @EnviedField(varName: 'SUPABASE_URL')
+  static final String supabaseUrl = _ProductionEnv.supabaseUrl;
+
+  @EnviedField(varName: 'SUPABASE_ANON_KEY')
+  static final String supabaseAnonKey = _ProductionEnv.supabaseAnonKey;
+}
+
+// Unified Env class that selects the right environment
+class Env {
+  // Set this based on your flavor
+  static const bool isDevelopment = true;
+  static const bool isStaging = false;
+  
+  static String get supabaseUrl {
+    if (isDevelopment) return DevelopmentEnv.supabaseUrl;
+    if (isStaging) return StagingEnv.supabaseUrl;
+    return ProductionEnv.supabaseUrl;
+  }
+  
+  static String get supabaseAnonKey {
+    if (isDevelopment) return DevelopmentEnv.supabaseAnonKey;
+    if (isStaging) return StagingEnv.supabaseAnonKey;
+    return ProductionEnv.supabaseAnonKey;
+  }
+}
+```
+
+### 3. Supabase Client Module
+
+Create the file `/lib/app/di/supabase_module.dart`:
+
+```dart
+import 'package:injectable/injectable.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:xcards/app/config/env.dart';
+
+@module
+abstract class SupabaseModule {
+  @preResolve
+  @LazySingleton()
+  Future<SupabaseClient> provideSupabaseClient() async {
+    await Supabase.initialize(
+      url: Env.supabaseUrl,
+      anonKey: Env.supabaseAnonKey,
+      authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.pkce,
+      ),
+      storageOptions: const StorageClientOptions(
+        retryAttempts: 3,
+      ),
+    );
+    
+    return Supabase.instance.client;
+  }
+}
+```
+
+**Notes:**
+- `@preResolve` ensures async initialization happens before the app starts
+- `@LazySingleton()` ensures only one instance exists throughout the app
+- PKCE auth flow is recommended for mobile apps
+- Storage retry attempts help with network issues
+- Uses `Env` class generated by envied for secure credential access
+
+### 4. Supabase Constants
+
+Create the file `/lib/app/constants/supabase_constants.dart`:
+
+```dart
+/// Constants for Supabase table names, column names, and error codes
+class SupabaseConstants {
+  // Prevent instantiation
+  const SupabaseConstants._();
+
+  // ============= TABLES =============
+  static const String flashcardsTable = 'flashcards';
+  static const String generationsTable = 'generations';
+  static const String errorLogsTable = 'generation_error_logs';
+
+  // ============= COMMON COLUMNS =============
+  static const String idColumn = 'id';
+  static const String userIdColumn = 'user_id';
+  static const String createdAtColumn = 'created_at';
+  static const String updatedAtColumn = 'updated_at';
+
+  // ============= FLASHCARD COLUMNS =============
+  static const String flashcardFrontColumn = 'front';
+  static const String flashcardBackColumn = 'back';
+  static const String flashcardSourceColumn = 'source';
+  static const String flashcardGenerationIdColumn = 'generation_id';
+
+  // ============= GENERATION COLUMNS =============
+  static const String generationModelColumn = 'model';
+  static const String generationSourceTextHashColumn = 'source_text_hash';
+  static const String generationSourceTextLengthColumn = 'source_text_length';
+  static const String generationGeneratedCountColumn = 'generated_count';
+  static const String generationAcceptedUneditedCountColumn = 'accepted_unedited_count';
+  static const String generationAcceptedEditedCountColumn = 'accepted_edited_count';
+  static const String generationDurationColumn = 'generation_duration';
+
+  // ============= ERROR LOG COLUMNS =============
+  static const String errorLogErrorCodeColumn = 'error_code';
+  static const String errorLogErrorMessageColumn = 'error_message';
+  static const String errorLogModelColumn = 'model';
+  static const String errorLogSourceTextHashColumn = 'source_text_hash';
+  static const String errorLogSourceTextLengthColumn = 'source_text_length';
+
+  // ============= QUERY PARAMETERS =============
+  static const String orderAscending = 'ascending';
+  static const String orderDescending = 'descending';
+
+  // ============= POSTGREST ERROR CODES =============
+  /// Resource not found
+  static const String errorCodeNotFound = 'PGRST116';
+  
+  /// Unique constraint violation
+  static const String errorCodeUniqueViolation = '23505';
+  
+  /// Foreign key violation
+  static const String errorCodeForeignKeyViolation = '23503';
+  
+  /// Check constraint violation
+  static const String errorCodeCheckViolation = '23514';
+  
+  /// Not null violation
+  static const String errorCodeNotNullViolation = '23502';
+
+  // ============= RLS ERROR CODES =============
+  /// Insufficient privilege (RLS policy denial)
+  static const String errorCodeInsufficientPrivilege = '42501';
+}
+```
+
+### 5. Update Dependency Injection
+
+After creating the modules, regenerate the injection code:
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+This will register the Supabase client in the DI container.
+
+### 6. Usage in Services
+
+Now you can inject `SupabaseClient` into your services:
+
+**Example Service Structure:**
+
+```dart
+import 'package:injectable/injectable.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:xcards/app/constants/supabase_constants.dart';
+import 'package:xcards/app/failures/app_failure.dart';
+
+abstract class FlashcardService {
+  Future<List<FlashcardModel>> getAllFlashcards();
+  Future<FlashcardModel> getFlashcard(String id);
+  Future<void> createFlashcard(FlashcardModel flashcard);
+  Future<void> updateFlashcard(FlashcardModel flashcard);
+  Future<void> deleteFlashcard(String id);
+}
+
+@LazySingleton(as: FlashcardService)
+class FlashcardServiceImpl implements FlashcardService {
+  FlashcardServiceImpl({
+    required SupabaseClient supabaseClient,
+  }) : _supabase = supabaseClient;
+
+  final SupabaseClient _supabase;
+
+  @override
+  Future<List<FlashcardModel>> getAllFlashcards() async {
+    try {
+      final response = await _supabase
+          .from(SupabaseConstants.flashcardsTable)
+          .select()
+          .order(SupabaseConstants.createdAtColumn, ascending: false);
+
+      return (response as List<dynamic>)
+          .map((json) => FlashcardModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } on PostgrestException catch (e) {
+      throw AppFailure.server(message: 'Database error: ${e.message}');
+    } catch (e) {
+      throw AppFailure.unexpected(message: 'Unexpected error: $e');
+    }
+  }
+
+  @override
+  Future<FlashcardModel> getFlashcard(String id) async {
+    try {
+      final response = await _supabase
+          .from(SupabaseConstants.flashcardsTable)
+          .select()
+          .eq(SupabaseConstants.idColumn, id)
+          .single();
+
+      return FlashcardModel.fromJson(response);
+    } on PostgrestException catch (e) {
+      if (e.code == SupabaseConstants.errorCodeNotFound) {
+        throw AppFailure.notFound(message: 'Flashcard not found');
+      }
+      throw AppFailure.server(message: 'Database error: ${e.message}');
+    } catch (e) {
+      throw AppFailure.unexpected(message: 'Unexpected error: $e');
+    }
+  }
+
+  @override
+  Future<void> createFlashcard(FlashcardModel flashcard) async {
+    try {
+      await _supabase
+          .from(SupabaseConstants.flashcardsTable)
+          .insert(flashcard.toJson());
+    } on PostgrestException catch (e) {
+      if (e.code == SupabaseConstants.errorCodeUniqueViolation) {
+        throw AppFailure.validation(message: 'Flashcard already exists');
+      }
+      throw AppFailure.server(message: 'Failed to create flashcard: ${e.message}');
+    } catch (e) {
+      throw AppFailure.unexpected(message: 'Unexpected error: $e');
+    }
+  }
+
+  @override
+  Future<void> updateFlashcard(FlashcardModel flashcard) async {
+    try {
+      await _supabase
+          .from(SupabaseConstants.flashcardsTable)
+          .update(flashcard.toJson())
+          .eq(SupabaseConstants.idColumn, flashcard.id);
+    } on PostgrestException catch (e) {
+      throw AppFailure.server(message: 'Failed to update flashcard: ${e.message}');
+    } catch (e) {
+      throw AppFailure.unexpected(message: 'Unexpected error: $e');
+    }
+  }
+
+  @override
+  Future<void> deleteFlashcard(String id) async {
+    try {
+      await _supabase
+          .from(SupabaseConstants.flashcardsTable)
+          .delete()
+          .eq(SupabaseConstants.idColumn, id);
+    } on PostgrestException catch (e) {
+      throw AppFailure.server(message: 'Failed to delete flashcard: ${e.message}');
+    } catch (e) {
+      throw AppFailure.unexpected(message: 'Unexpected error: $e');
+    }
+  }
+}
+```
+
+### 7. Authentication Service Example
+
+For authentication features:
+
+```dart
+import 'package:injectable/injectable.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:xcards/app/failures/app_failure.dart';
+
+abstract class AuthService {
+  User? get currentUser;
+  Stream<AuthState> get authStateChanges;
+  Future<void> signInWithEmail(String email, String password);
+  Future<void> signUpWithEmail(String email, String password);
+  Future<void> signOut();
+  Future<void> resetPassword(String email);
+}
+
+@LazySingleton(as: AuthService)
+class AuthServiceImpl implements AuthService {
+  AuthServiceImpl({
+    required SupabaseClient supabaseClient,
+  }) : _supabase = supabaseClient;
+
+  final SupabaseClient _supabase;
+
+  @override
+  User? get currentUser => _supabase.auth.currentUser;
+
+  @override
+  Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
+
+  @override
+  Future<void> signInWithEmail(String email, String password) async {
+    try {
+      await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+    } on AuthException catch (e) {
+      throw AppFailure.unauthorized(message: e.message);
+    } catch (e) {
+      throw AppFailure.unexpected(message: 'Unexpected error: $e');
+    }
+  }
+
+  @override
+  Future<void> signUpWithEmail(String email, String password) async {
+    try {
+      await _supabase.auth.signUp(
+        email: email,
+        password: password,
+      );
+    } on AuthException catch (e) {
+      throw AppFailure.validation(message: e.message);
+    } catch (e) {
+      throw AppFailure.unexpected(message: 'Unexpected error: $e');
+    }
+  }
+
+  @override
+  Future<void> signOut() async {
+    try {
+      await _supabase.auth.signOut();
+    } catch (e) {
+      throw AppFailure.unexpected(message: 'Failed to sign out: $e');
+    }
+  }
+
+  @override
+  Future<void> resetPassword(String email) async {
+    try {
+      await _supabase.auth.resetPasswordForEmail(email);
+    } on AuthException catch (e) {
+      throw AppFailure.validation(message: e.message);
+    } catch (e) {
+      throw AppFailure.unexpected(message: 'Unexpected error: $e');
+    }
+  }
+}
+```
+
+## Type Safety Without Code Generation
+
+Since Supabase doesn't support Dart type generation, follow these patterns for type safety:
+
+### 1. Define Domain Models with Freezed and @JsonKey
+
+Use `@JsonKey` annotations to handle snake_case ↔ camelCase conversion automatically:
+
+```dart
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'flashcard_model.freezed.dart';
+part 'flashcard_model.g.dart';
+
+@freezed
+class FlashcardModel with _$FlashcardModel {
+  const factory FlashcardModel({
+    required String id,
+    @JsonKey(name: 'user_id') required String userId,
+    required String front,
+    required String back,
+    required String source,
+    @JsonKey(name: 'generation_id') String? generationId,
+    @JsonKey(name: 'created_at') required DateTime createdAt,
+    @JsonKey(name: 'updated_at') required DateTime updatedAt,
+  }) = _FlashcardModel;
+
+  factory FlashcardModel.fromJson(Map<String, dynamic> json) =>
+      _$FlashcardModelFromJson(json);
+}
+```
+
+**Notes:**
+- `@JsonKey(name: 'snake_case_name')` handles field name mapping automatically
+- No need for custom `toJson()` - freezed + json_serializable generate it
+- Both `fromJson()` and `toJson()` are automatically generated
+
+### 2. DateTime Handling with JsonConverter
+
+Create a custom converter for proper ISO 8601 DateTime serialization:
+
+Create the file `/lib/app/utils/date_time_converter.dart`:
+
+```dart
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+class DateTimeConverter implements JsonConverter<DateTime, String> {
+  const DateTimeConverter();
+
+  @override
+  DateTime fromJson(String json) => DateTime.parse(json);
+
+  @override
+  String toJson(DateTime object) => object.toIso8601String();
+}
+```
+
+Then use it in your models:
+
+```dart
+@freezed
+class FlashcardModel with _$FlashcardModel {
+  const factory FlashcardModel({
+    required String id,
+    @JsonKey(name: 'user_id') required String userId,
+    required String front,
+    required String back,
+    required String source,
+    @JsonKey(name: 'generation_id') String? generationId,
+    @JsonKey(name: 'created_at') @DateTimeConverter() required DateTime createdAt,
+    @JsonKey(name: 'updated_at') @DateTimeConverter() required DateTime updatedAt,
+  }) = _FlashcardModel;
+
+  factory FlashcardModel.fromJson(Map<String, dynamic> json) =>
+      _$FlashcardModelFromJson(json);
+}
+```
+
+### 3. Complete Model Example
+
+Here's a complete example for the Generation model:
+
+```dart
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:xcards/app/utils/date_time_converter.dart';
+
+part 'generation_model.freezed.dart';
+part 'generation_model.g.dart';
+
+@freezed
+class GenerationModel with _$GenerationModel {
+  const factory GenerationModel({
+    required String id,
+    @JsonKey(name: 'user_id') required String userId,
+    required String model,
+    @JsonKey(name: 'source_text_hash') required String sourceTextHash,
+    @JsonKey(name: 'source_text_length') required int sourceTextLength,
+    @JsonKey(name: 'generated_count') required int generatedCount,
+    @JsonKey(name: 'accepted_unedited_count') int? acceptedUneditedCount,
+    @JsonKey(name: 'accepted_edited_count') int? acceptedEditedCount,
+    @JsonKey(name: 'generation_duration') required int generationDuration,
+    @JsonKey(name: 'created_at') @DateTimeConverter() required DateTime createdAt,
+  }) = _GenerationModel;
+
+  factory GenerationModel.fromJson(Map<String, dynamic> json) =>
+      _$GenerationModelFromJson(json);
+}
+```
+
+## Error Handling Patterns
+
+### Common Supabase Exceptions
+
+Use `SupabaseConstants` for all error codes to avoid magic strings:
+
+```dart
+import 'package:xcards/app/constants/supabase_constants.dart';
+import 'package:xcards/app/failures/app_failure.dart';
+
+try {
+  // Supabase operation
+} on PostgrestException catch (e) {
+  // Database/query errors
+  switch (e.code) {
+    case SupabaseConstants.errorCodeNotFound:
+      throw AppFailure.notFound(message: 'Resource not found');
+    case SupabaseConstants.errorCodeUniqueViolation:
+      throw AppFailure.validation(message: 'Resource already exists');
+    case SupabaseConstants.errorCodeForeignKeyViolation:
+      throw AppFailure.validation(message: 'Invalid reference');
+    case SupabaseConstants.errorCodeNotNullViolation:
+      throw AppFailure.validation(message: 'Required field missing');
+    case SupabaseConstants.errorCodeInsufficientPrivilege:
+      throw AppFailure.unauthorized(message: 'Access denied');
+    default:
+      throw AppFailure.server(message: e.message);
+  }
+} on AuthException catch (e) {
+  // Authentication errors
+  throw AppFailure.unauthorized(message: e.message);
+} on StorageException catch (e) {
+  // Storage errors
+  throw AppFailure.server(message: 'Storage error: ${e.message}');
+} catch (e) {
+  // Unexpected errors
+  throw AppFailure.unexpected(message: 'Unexpected error: $e');
+}
+```
+
+### Complete Error Handling Example
+
+```dart
+@override
+Future<FlashcardModel> getFlashcard(String id) async {
+  try {
+    final response = await _supabase
+        .from(SupabaseConstants.flashcardsTable)
+        .select()
+        .eq(SupabaseConstants.idColumn, id)
+        .single();
+
+    return FlashcardModel.fromJson(response);
+  } on PostgrestException catch (e) {
+    switch (e.code) {
+      case SupabaseConstants.errorCodeNotFound:
+        throw AppFailure.notFound(message: 'Flashcard not found');
+      case SupabaseConstants.errorCodeInsufficientPrivilege:
+        throw AppFailure.unauthorized(
+          message: 'You do not have permission to access this flashcard',
+        );
+      default:
+        throw AppFailure.server(
+          message: 'Database error: ${e.message}',
+        );
+    }
+  } catch (e) {
+    throw AppFailure.unexpected(message: 'Unexpected error: $e');
+  }
+}
+```
+
+## Real-time Subscriptions
+
+For real-time features, use `SupabaseConstants`:
+
+```dart
+@LazySingleton(as: FlashcardService)
+class FlashcardServiceImpl implements FlashcardService {
+  FlashcardServiceImpl({
+    required SupabaseClient supabaseClient,
+  }) : _supabase = supabaseClient;
+
+  final SupabaseClient _supabase;
+
+  Stream<List<FlashcardModel>> watchFlashcards() {
+    return _supabase
+        .from(SupabaseConstants.flashcardsTable)
+        .stream(primaryKey: [SupabaseConstants.idColumn])
+        .order(SupabaseConstants.createdAtColumn)
+        .map((data) => data
+            .map((json) => FlashcardModel.fromJson(json))
+            .toList());
+  }
+}
+```
+
+## Testing Considerations
+
+### 1. Create Test Fixtures
+
+Create reusable mock models in `/test/fixtures/`:
+
+**`/test/fixtures/flashcard_fixtures.dart`**
+```dart
+import 'package:xcards/features/flashcard/domain/model/flashcard_model.dart';
+
+/// Test fixture for flashcard models
+class FlashcardFixtures {
+  FlashcardFixtures._();
+
+  static final flashcard1 = FlashcardModel(
+    id: 'test-id-1',
+    userId: 'user-1',
+    front: 'What is Flutter?',
+    back: 'A UI framework by Google',
+    source: 'manual',
+    generationId: null,
+    createdAt: DateTime(2024, 1, 1),
+    updatedAt: DateTime(2024, 1, 1),
+  );
+
+  static final flashcard2 = FlashcardModel(
+    id: 'test-id-2',
+    userId: 'user-1',
+    front: 'What is Dart?',
+    back: 'A programming language',
+    source: 'generated',
+    generationId: 'gen-1',
+    createdAt: DateTime(2024, 1, 2),
+    updatedAt: DateTime(2024, 1, 2),
+  );
+
+  static final flashcard3 = FlashcardModel(
+    id: 'test-id-3',
+    userId: 'user-2',
+    front: 'What is Supabase?',
+    back: 'An open source Firebase alternative',
+    source: 'manual',
+    generationId: null,
+    createdAt: DateTime(2024, 1, 3),
+    updatedAt: DateTime(2024, 1, 3),
+  );
+
+  static List<FlashcardModel> get allFlashcards => [
+        flashcard1,
+        flashcard2,
+        flashcard3,
+      ];
+
+  static List<FlashcardModel> flashcardsForUser(String userId) =>
+      allFlashcards.where((f) => f.userId == userId).toList();
+
+  /// JSON representations for mocking API responses
+  static Map<String, dynamic> get flashcard1Json => {
+        'id': flashcard1.id,
+        'user_id': flashcard1.userId,
+        'front': flashcard1.front,
+        'back': flashcard1.back,
+        'source': flashcard1.source,
+        'generation_id': flashcard1.generationId,
+        'created_at': flashcard1.createdAt.toIso8601String(),
+        'updated_at': flashcard1.updatedAt.toIso8601String(),
+      };
+
+  static Map<String, dynamic> get flashcard2Json => {
+        'id': flashcard2.id,
+        'user_id': flashcard2.userId,
+        'front': flashcard2.front,
+        'back': flashcard2.back,
+        'source': flashcard2.source,
+        'generation_id': flashcard2.generationId,
+        'created_at': flashcard2.createdAt.toIso8601String(),
+        'updated_at': flashcard2.updatedAt.toIso8601String(),
+      };
+
+  static List<Map<String, dynamic>> get allFlashcardsJson => [
+        flashcard1Json,
+        flashcard2Json,
+      ];
+}
+```
+
+**`/test/fixtures/generation_fixtures.dart`**
+```dart
+import 'package:xcards/features/generation/domain/model/generation_model.dart';
+
+/// Test fixture for generation models
+class GenerationFixtures {
+  GenerationFixtures._();
+
+  static final generation1 = GenerationModel(
+    id: 'gen-1',
+    userId: 'user-1',
+    model: 'gpt-4',
+    sourceTextHash: 'hash123',
+    sourceTextLength: 500,
+    generatedCount: 10,
+    acceptedUneditedCount: 7,
+    acceptedEditedCount: 2,
+    generationDuration: 5000,
+    createdAt: DateTime(2024, 1, 1),
+  );
+
+  static final generation2 = GenerationModel(
+    id: 'gen-2',
+    userId: 'user-1',
+    model: 'gpt-3.5-turbo',
+    sourceTextHash: 'hash456',
+    sourceTextLength: 300,
+    generatedCount: 5,
+    acceptedUneditedCount: null,
+    acceptedEditedCount: null,
+    generationDuration: 3000,
+    createdAt: DateTime(2024, 1, 2),
+  );
+
+  static Map<String, dynamic> get generation1Json => {
+        'id': generation1.id,
+        'user_id': generation1.userId,
+        'model': generation1.model,
+        'source_text_hash': generation1.sourceTextHash,
+        'source_text_length': generation1.sourceTextLength,
+        'generated_count': generation1.generatedCount,
+        'accepted_unedited_count': generation1.acceptedUneditedCount,
+        'accepted_edited_count': generation1.acceptedEditedCount,
+        'generation_duration': generation1.generationDuration,
+        'created_at': generation1.createdAt.toIso8601String(),
+      };
+}
+```
+
+### 2. Mock Supabase Client in Tests
+
+**`/test/mocks/mock_supabase.dart`**
+```dart
+import 'package:mocktail/mocktail.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class MockSupabaseClient extends Mock implements SupabaseClient {}
+class MockGoTrueClient extends Mock implements GoTrueClient {}
+class MockPostgrestClient extends Mock implements PostgrestClient {}
+class MockPostgrestFilterBuilder extends Mock implements PostgrestFilterBuilder {}
+class MockPostgrestBuilder extends Mock implements PostgrestBuilder {}
+```
+
+### 3. Complete Service Test Example
+
+**`/test/features/flashcard/data/service/flashcard_service_test.dart`**
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:xcards/app/constants/supabase_constants.dart';
+import 'package:xcards/app/failures/app_failure.dart';
+import 'package:xcards/features/flashcard/data/service/flashcard_service.dart';
+import 'package:xcards/features/flashcard/domain/model/flashcard_model.dart';
+
+import '../../../../fixtures/flashcard_fixtures.dart';
+import '../../../../mocks/mock_supabase.dart';
+
+void main() {
+  group('FlashcardService', () {
+    late FlashcardService service;
+    late MockSupabaseClient mockSupabase;
+    late MockPostgrestClient mockPostgrest;
+    late MockPostgrestFilterBuilder mockFilterBuilder;
+
+    setUp(() {
+      mockSupabase = MockSupabaseClient();
+      mockPostgrest = MockPostgrestClient();
+      mockFilterBuilder = MockPostgrestFilterBuilder();
+      
+      when(() => mockSupabase.from(any())).thenReturn(mockPostgrest);
+      
+      service = FlashcardServiceImpl(supabaseClient: mockSupabase);
+    });
+
+    group('getAllFlashcards', () {
+      test('returns list of flashcards when successful', () async {
+        // Arrange
+        when(() => mockPostgrest.select()).thenReturn(mockFilterBuilder);
+        when(() => mockFilterBuilder.order(any(), ascending: any(named: 'ascending')))
+            .thenAnswer((_) async => FlashcardFixtures.allFlashcardsJson);
+
+        // Act
+        final result = await service.getAllFlashcards();
+
+        // Assert
+        expect(result, hasLength(2));
+        expect(result.first.id, FlashcardFixtures.flashcard1.id);
+        expect(result.last.id, FlashcardFixtures.flashcard2.id);
+        verify(() => mockSupabase.from(SupabaseConstants.flashcardsTable)).called(1);
+        verify(() => mockPostgrest.select()).called(1);
+        verify(
+          () => mockFilterBuilder.order(
+            SupabaseConstants.createdAtColumn,
+            ascending: false,
+          ),
+        ).called(1);
+      });
+
+      test('throws AppFailure.server when PostgrestException occurs', () async {
+        // Arrange
+        when(() => mockPostgrest.select()).thenReturn(mockFilterBuilder);
+        when(() => mockFilterBuilder.order(any(), ascending: any(named: 'ascending')))
+            .thenThrow(
+          PostgrestException(message: 'Database error', code: 'error'),
+        );
+
+        // Act & Assert
+        expect(
+          () => service.getAllFlashcards(),
+          throwsA(isA<AppFailure>()),
+        );
+      });
+    });
+
+    group('getFlashcard', () {
+      test('returns flashcard when found', () async {
+        // Arrange
+        const testId = 'test-id-1';
+        when(() => mockPostgrest.select()).thenReturn(mockFilterBuilder);
+        when(() => mockFilterBuilder.eq(any(), any())).thenReturn(mockFilterBuilder);
+        when(() => mockFilterBuilder.single())
+            .thenAnswer((_) async => FlashcardFixtures.flashcard1Json);
+
+        // Act
+        final result = await service.getFlashcard(testId);
+
+        // Assert
+        expect(result.id, testId);
+        expect(result.front, FlashcardFixtures.flashcard1.front);
+        verify(() => mockSupabase.from(SupabaseConstants.flashcardsTable)).called(1);
+        verify(() => mockFilterBuilder.eq(SupabaseConstants.idColumn, testId)).called(1);
+      });
+
+      test('throws AppFailure.notFound when flashcard not found', () async {
+        // Arrange
+        when(() => mockPostgrest.select()).thenReturn(mockFilterBuilder);
+        when(() => mockFilterBuilder.eq(any(), any())).thenReturn(mockFilterBuilder);
+        when(() => mockFilterBuilder.single()).thenThrow(
+          PostgrestException(
+            message: 'Not found',
+            code: SupabaseConstants.errorCodeNotFound,
+          ),
+        );
+
+        // Act & Assert
+        expect(
+          () => service.getFlashcard('non-existent'),
+          throwsA(
+            isA<AppFailure>().having(
+              (f) => f.maybeWhen(
+                notFound: (_) => true,
+                orElse: () => false,
+              ),
+              'is notFound',
+              true,
+            ),
+          ),
+        );
+      });
+    });
+
+    group('createFlashcard', () {
+      test('creates flashcard successfully', () async {
+        // Arrange
+        final flashcard = FlashcardFixtures.flashcard1;
+        when(() => mockPostgrest.insert(any())).thenAnswer((_) async => []);
+
+        // Act
+        await service.createFlashcard(flashcard);
+
+        // Assert
+        verify(() => mockSupabase.from(SupabaseConstants.flashcardsTable)).called(1);
+        verify(() => mockPostgrest.insert(any())).called(1);
+      });
+
+      test('throws AppFailure.validation when unique constraint violated', () async {
+        // Arrange
+        final flashcard = FlashcardFixtures.flashcard1;
+        when(() => mockPostgrest.insert(any())).thenThrow(
+          PostgrestException(
+            message: 'Unique violation',
+            code: SupabaseConstants.errorCodeUniqueViolation,
+          ),
+        );
+
+        // Act & Assert
+        expect(
+          () => service.createFlashcard(flashcard),
+          throwsA(
+            isA<AppFailure>().having(
+              (f) => f.maybeWhen(
+                validation: (_) => true,
+                orElse: () => false,
+              ),
+              'is validation',
+              true,
+            ),
+          ),
+        );
+      });
+    });
+
+    group('deleteFlashcard', () {
+      test('deletes flashcard successfully', () async {
+        // Arrange
+        const testId = 'test-id-1';
+        when(() => mockPostgrest.delete()).thenReturn(mockFilterBuilder);
+        when(() => mockFilterBuilder.eq(any(), any())).thenAnswer((_) async => []);
+
+        // Act
+        await service.deleteFlashcard(testId);
+
+        // Assert
+        verify(() => mockSupabase.from(SupabaseConstants.flashcardsTable)).called(1);
+        verify(() => mockPostgrest.delete()).called(1);
+        verify(() => mockFilterBuilder.eq(SupabaseConstants.idColumn, testId)).called(1);
+      });
+    });
+  });
+}
+```
+
+**Key Testing Principles:**
+
+1. **Use Fixtures**: Always use fixture classes instead of creating test data inline
+2. **Centralized Mocks**: Keep all mock classes in one place
+3. **Constants**: Use `SupabaseConstants` in tests to ensure consistency
+4. **Comprehensive Coverage**: Test success cases, error cases, and edge cases
+5. **Verify Calls**: Always verify that the correct methods were called with correct parameters
+6. **Clear Arrange-Act-Assert**: Structure tests with clear sections
+
+## Running Migrations
+
+Ensure your local Supabase is up to date:
+
+```bash
+supabase db reset --local
+supabase migration up --local
+```
+
+## Complete Setup Checklist
+
+Follow these steps in order:
+
+1. **Install packages:**
+   ```bash
+   flutter pub add supabase_flutter envied
+   flutter pub add -d envied_generator build_runner
+   ```
+
+2. **Create `.env` files** for each flavor (development, staging, production)
+
+3. **Create `Env` class** in `/lib/app/config/env.dart` with `@Envied` annotation
+
+4. **Create `SupabaseConstants`** in `/lib/app/constants/supabase_constants.dart`
+
+5. **Create `DateTimeConverter`** in `/lib/app/utils/date_time_converter.dart`
+
+6. **Create `SupabaseModule`** in `/lib/app/di/supabase_module.dart`
+
+7. **Run code generation:**
+   ```bash
+   dart run build_runner build --delete-conflicting-outputs
+   ```
+
+8. **Create domain models** with `@JsonKey` annotations and `@DateTimeConverter()`
+
+9. **Create services** that inject `SupabaseClient` and use `SupabaseConstants`
+
+10. **Create test fixtures** in `/test/fixtures/` for reusable test data
+
+11. **Create test mocks** in `/test/mocks/mock_supabase.dart`
+
+12. **Write tests** using fixtures and mocks
+
+## Summary of Key Changes from Astro Guide
+
+This Flutter implementation differs from the Astro/TypeScript approach:
+
+1. **Environment Variables**: Uses [`envied`](https://pub.dev/packages/envied) package with obfuscation instead of `.env` files loaded at runtime
+2. **Type Safety**: Uses `@JsonKey` annotations instead of generated TypeScript types
+3. **Dependency Injection**: Uses `injectable` with `get_it` instead of middleware
+4. **Constants**: All table names, column names, and error codes are in `SupabaseConstants`
+5. **DateTime Handling**: Custom `JsonConverter` for ISO 8601 serialization
+6. **Testing**: Comprehensive fixture and mock patterns for consistent test data
+
+## Additional Resources
+
+- [Supabase Flutter Documentation](https://supabase.com/docs/reference/dart)
+- [Supabase Auth for Flutter](https://supabase.com/docs/guides/auth/native-mobile-login)
+- [Row Level Security (RLS) Policies](https://supabase.com/docs/guides/auth/row-level-security)
+- [Envied Package Documentation](https://pub.dev/packages/envied)
+- [Injectable Documentation](https://pub.dev/packages/injectable)
