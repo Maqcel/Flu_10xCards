@@ -5,7 +5,7 @@ part 'update_flashcard_request_entity.g.dart';
 
 /// Request entity for updating an existing flashcard
 ///
-/// Used with: PATCH /rest/v1/flashcards?id=eq.flashcard_id
+/// Used with: PATCH /flashcards?id=eq.flashcard_id
 /// Note: Only front and back fields can be updated
 @freezed
 abstract class UpdateFlashcardRequestEntity

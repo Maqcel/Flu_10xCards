@@ -14,9 +14,6 @@ abstract class GenerateFlashcardsResponseEntity
     /// UUID for tracking this generation session
     @JsonKey(name: 'generation_id') required String generationId,
 
-    /// LLM model used for generation
-    required String model,
-
     /// Character count of input source text
     @JsonKey(name: 'source_text_length') required int sourceTextLength,
 

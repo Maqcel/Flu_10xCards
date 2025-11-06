@@ -5,7 +5,7 @@ part 'update_generation_stats_request_entity.g.dart';
 
 /// Request entity for updating generation acceptance statistics
 ///
-/// Used with: PATCH /rest/v1/generations?id=eq.generation_id
+/// Used with: PATCH /generations?id=eq.generation_id
 @freezed
 abstract class UpdateGenerationStatsRequestEntity
     with _$UpdateGenerationStatsRequestEntity {

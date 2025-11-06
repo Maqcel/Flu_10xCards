@@ -6,7 +6,7 @@ part 'flashcard_statistics_entity.g.dart';
 
 /// Aggregated statistics about flashcard sources and usage
 ///
-/// Returned from: GET /rest/v1/rpc/get_flashcard_statistics
+/// Returned from: GET /get_flashcard_statistics
 @freezed
 abstract class FlashcardStatisticsEntity with _$FlashcardStatisticsEntity {
   const factory FlashcardStatisticsEntity({

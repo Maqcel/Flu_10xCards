@@ -14,7 +14,6 @@ class GenerationResponseMapper {
     GenerateFlashcardsResponseEntity entity,
   ) => GenerationResponseModel(
     generationId: entity.generationId,
-    model: entity.model,
     sourceTextLength: entity.sourceTextLength,
     sourceTextHash: entity.sourceTextHash,
     generatedCount: entity.generatedCount,
@@ -27,7 +26,6 @@ class GenerationResponseMapper {
     GenerationResponseModel model,
   ) => GenerateFlashcardsResponseEntity(
     generationId: model.generationId,
-    model: model.model,
     sourceTextLength: model.sourceTextLength,
     sourceTextHash: model.sourceTextHash,
     generatedCount: model.generatedCount,

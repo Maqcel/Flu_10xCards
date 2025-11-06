@@ -10,7 +10,6 @@ part 'generation_response_model.freezed.dart';
 abstract class GenerationResponseModel with _$GenerationResponseModel {
   const factory GenerationResponseModel({
     required String generationId,
-    required String model,
     required int sourceTextLength,
     required String sourceTextHash,
     required int generatedCount,

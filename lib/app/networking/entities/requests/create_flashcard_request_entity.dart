@@ -5,7 +5,7 @@ part 'create_flashcard_request_entity.g.dart';
 
 /// Request entity for creating a single flashcard
 ///
-/// Used with: POST /rest/v1/flashcards
+/// Used with: POST /flashcards
 @freezed
 abstract class CreateFlashcardRequestEntity
     with _$CreateFlashcardRequestEntity {

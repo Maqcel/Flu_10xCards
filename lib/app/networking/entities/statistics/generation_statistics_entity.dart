@@ -6,7 +6,7 @@ part 'generation_statistics_entity.g.dart';
 
 /// Aggregated statistics about AI generation performance
 ///
-/// Returned from: GET /rest/v1/rpc/get_generation_statistics
+/// Returned from: GET /get_generation_statistics
 @freezed
 abstract class GenerationStatisticsEntity with _$GenerationStatisticsEntity {
   const factory GenerationStatisticsEntity({
