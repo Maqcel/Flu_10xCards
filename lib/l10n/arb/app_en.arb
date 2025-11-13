@@ -11,5 +11,56 @@
     "@@@____APP_FAILURES___END": {},
     "@@@____COUNTER___START": {},
     "counterAppBarTitle": "Counter",
-    "@@@____COUNTER___END": {}
+    "@@@____COUNTER___END": {},
+    "@@@____NAV___START": {},
+    "dashboardTitle": "Dashboard",
+    "learnTitle": "Learn",
+    "statsTitle": "Statistics",
+    "settingsTitle": "Settings",
+    "generationTitle": "Generate Flashcards",
+    "@@@____NAV___END": {},
+    "@@@____GENERATION___START": {},
+    "generationInputHint": "Paste your text here (1,000 - 10,000 characters)",
+    "generationCharCounter": "{current} / 10,000 characters",
+    "@generationCharCounter": {
+        "placeholders": {
+            "current": {
+                "type": "int"
+            }
+        }
+    },
+    "generationMinChars": "Minimum 1,000 characters required",
+    "generationGenerateButton": "Generate Flashcards",
+    "generationLoading": "Generating flashcards...",
+    "generationErrorValidation": "Text must be between 1,000 and 10,000 characters",
+    "generationErrorUnexpected": "Failed to generate flashcards. Please try again.",
+    "generationSuccessSaved": "{count} flashcards saved!",
+    "@generationSuccessSaved": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "generationAllReviewed": "All proposals reviewed!",
+    "generationCounterAccepted": "Accepted",
+    "generationCounterEdited": "Edited",
+    "generationCounterRemaining": "Remaining",
+    "generationCardFrontLabel": "Front side (tap to flip)",
+    "generationCardBackLabel": "Back side",
+    "generationButtonCancel": "Cancel",
+    "generationButtonSave": "Save ({count})",
+    "@generationButtonSave": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "generationEditDialogTitle": "Edit Flashcard",
+    "generationEditDialogFrontLabel": "Front",
+    "generationEditDialogBackLabel": "Back",
+    "generationEditDialogCancel": "Cancel",
+    "generationEditDialogSave": "Save",
+    "@@@____GENERATION___END": {}
 }

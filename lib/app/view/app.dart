@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:xcards/l10n/l10n.dart';
 import 'package:xcards/presentation/styles/app_dimensions.dart';
+import 'package:xcards/presentation/styles/app_theme.dart';
 
 class App extends StatelessWidget {
   const App({required RootStackRouter appRouter, super.key})
@@ -17,6 +18,9 @@ class App extends StatelessWidget {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: _appRouter.config(),
+      theme: AppTheme.lightTheme(),
+      darkTheme: AppTheme.darkTheme(),
+      themeMode: ThemeMode.system,
     ),
   );
 }

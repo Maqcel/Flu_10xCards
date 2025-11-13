@@ -100,4 +100,5 @@ abstract class AppDimensions {
   static double get iconSize32 => 32.w;
   static double get iconSize40 => 40.w;
   static double get iconSize48 => 48.w;
+  static double get iconSize64 => 64.w;
 }

@@ -11,5 +11,56 @@
     "@@@____APP_FAILURES___END": {},
     "@@@____COUNTER___START": {},
     "counterAppBarTitle": "Licznik",
-    "@@@____COUNTER___END": {}
+    "@@@____COUNTER___END": {},
+    "@@@____NAV___START": {},
+    "dashboardTitle": "Pulpit",
+    "learnTitle": "Nauka",
+    "statsTitle": "Statystyki",
+    "settingsTitle": "Ustawienia",
+    "generationTitle": "Generuj fiszki",
+    "@@@____NAV___END": {},
+    "@@@____GENERATION___START": {},
+    "generationInputHint": "Wklej tutaj swój tekst (1 000 - 10 000 znaków)",
+    "generationCharCounter": "{current} / 10 000 znaków",
+    "@generationCharCounter": {
+        "placeholders": {
+            "current": {
+                "type": "int"
+            }
+        }
+    },
+    "generationMinChars": "Wymagane minimum 1 000 znaków",
+    "generationGenerateButton": "Generuj fiszki",
+    "generationLoading": "Generowanie fiszek...",
+    "generationErrorValidation": "Tekst musi zawierać od 1 000 do 10 000 znaków",
+    "generationErrorUnexpected": "Nie udało się wygenerować fiszek. Spróbuj ponownie.",
+    "generationSuccessSaved": "Zapisano {count} fiszek!",
+    "@generationSuccessSaved": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "generationAllReviewed": "Przejrzano wszystkie propozycje!",
+    "generationCounterAccepted": "Zaakceptowane",
+    "generationCounterEdited": "Edytowane",
+    "generationCounterRemaining": "Pozostałe",
+    "generationCardFrontLabel": "Przód (kliknij aby odwrócić)",
+    "generationCardBackLabel": "Tył",
+    "generationButtonCancel": "Anuluj",
+    "generationButtonSave": "Zapisz ({count})",
+    "@generationButtonSave": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "generationEditDialogTitle": "Edytuj fiszkę",
+    "generationEditDialogFrontLabel": "Przód",
+    "generationEditDialogBackLabel": "Tył",
+    "generationEditDialogCancel": "Anuluj",
+    "generationEditDialogSave": "Zapisz",
+    "@@@____GENERATION___END": {}
 }

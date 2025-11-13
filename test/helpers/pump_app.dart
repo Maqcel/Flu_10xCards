@@ -11,11 +11,10 @@ extension PumpApp on WidgetTester {
     return pumpWidget(
       ScreenUtilInit(
         designSize: AppDimensions.mobileMockSize,
-
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: widget,
+          home: Scaffold(body: widget),
         ),
       ),
     );
