@@ -318,6 +318,225 @@ For more details, see `.cursor/rules/l10n.mdc`.
 
 ---
 
+## AI Integration 🤖
+
+This project integrates with **OpenRouter** to leverage various AI models for intelligent flashcard generation.
+
+### Supported AI Models
+
+The application supports multiple AI models through OpenRouter:
+
+| Model | Model ID | Cost | Best For |
+|-------|----------|------|----------|
+| **DeepSeek R1T2 Chimera** | `tngtech/deepseek-r1t2-chimera:free` | **Free** | **Default - Great for flashcards** |
+| GPT-4o Mini | `openai/gpt-4o-mini` | ~$0.15/$0.60 per 1M tokens | Balanced performance |
+| Gemini Flash 1.5 | `google/gemini-flash-1.5:free` | Free (with limits) | Alternative free option |
+| GPT-4o | `openai/gpt-4o` | ~$2.50/$10 per 1M tokens | Highest quality |
+| Claude 3.5 Sonnet | `anthropic/claude-3-5-sonnet` | ~$3/$15 per 1M tokens | Complex reasoning |
+
+**Default Model**: `tngtech/deepseek-r1t2-chimera:free` (**Free**, great quality for flashcards)
+
+### Setup Instructions
+
+#### 1. Get OpenRouter API Key
+
+1. Create an account at [OpenRouter](https://openrouter.ai/)
+2. Add credits to your account (recommended: $1-5 for testing)
+3. Generate an API key in [Settings → Keys](https://openrouter.ai/settings/keys)
+4. **Important**: Set a credit limit to prevent unexpected charges
+5. Configure privacy settings at [Settings → Privacy](https://openrouter.ai/settings/privacy)
+
+#### 2. Configure Environment Variables
+
+Create the following environment files in your project root (these files are git-ignored):
+
+**`.env.development`**
+```bash
+SUPABASE_URL=your_supabase_url_here
+SUPABASE_ANON_KEY=your_supabase_anon_key_here
+OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxx
+```
+
+**`.env.staging`**
+```bash
+SUPABASE_URL=your_staging_supabase_url_here
+SUPABASE_ANON_KEY=your_staging_supabase_anon_key_here
+OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxx
+```
+
+**`.env.production`**
+```bash
+SUPABASE_URL=your_production_supabase_url_here
+SUPABASE_ANON_KEY=your_production_supabase_anon_key_here
+OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxx
+```
+
+**Tip**: You can use the same OpenRouter API key for all environments, or create separate keys with different credit limits for better cost control.
+
+#### 3. Generate Environment Files
+
+After adding your API keys, regenerate the environment configuration:
+
+```sh
+dart run build_runner build --delete-conflicting-outputs
+```
+
+This will securely obfuscate your API keys using the `envied` package.
+
+### Usage Examples
+
+#### Generate Flashcards with AI
+
+```dart
+// In your Cubit or Use Case
+final result = await generateFlashcardsWithAi(
+  sourceText: '''
+    Flutter is an open-source UI software development kit created by Google.
+    It is used to develop cross platform applications for Android, iOS, Linux,
+    macOS, Windows, Google Fuchsia, and the web from a single codebase.
+  ''',
+  targetCount: 10,
+  additionalContext: 'Focus on key concepts for beginners',
+);
+
+result.fold(
+  (failure) => // Handle error
+  (flashcards) => // Use generated flashcards
+);
+```
+
+#### Custom AI Configuration
+
+```dart
+// Use a different model (e.g., GPT-4o for higher quality)
+final config = AiModelConfig(
+  modelId: 'openai/gpt-4o',
+  temperature: 0.7,
+  maxTokens: 2000,
+);
+
+// Or use predefined configurations
+final config = AiModelConfig.gpt4oMini; // Paid, fast
+final config = AiModelConfig.deepseekChimeraFree; // Free, default
+final config = AiModelConfig.geminiFlashFree; // Free alternative
+
+final result = await generateWithAi(
+  messages: [
+    AiMessage(role: AiMessageRole.system, content: systemPrompt),
+    AiMessage(role: AiMessageRole.user, content: userPrompt),
+  ],
+  config: config,
+);
+```
+
+### Cost Estimation
+
+For generating flashcards:
+- **Input**: ~500-1500 tokens (source text + prompts)
+- **Output**: ~300-800 tokens (10 flashcards with JSON structure)
+- **Total per generation**: ~1000-2500 tokens
+
+**Estimated costs** (per 100 flashcard generations):
+- **DeepSeek Chimera**: **Free** (default model)
+- **GPT-4o Mini**: ~$0.01 - $0.03
+- **Gemini Flash**: Free (within limits)
+- **GPT-4o**: ~$0.30 - $0.75
+- **Claude 3.5 Sonnet**: ~$0.40 - $1.00
+
+### Error Handling
+
+The AI integration includes comprehensive error handling for:
+
+- **Rate Limit Exceeded** (`aiRateLimitExceeded`): Retry after cooldown
+- **Insufficient Credits** (`aiInsufficientCredits`): Add credits to OpenRouter account
+- **Model Unavailable** (`aiModelUnavailable`): Fallback to alternative model
+- **Invalid Response** (`aiInvalidResponse`): Malformed JSON or empty response
+- **Timeout** (`aiTimeout`): Request took too long (>60s)
+- **Network Error** (`network`): Connection issues
+
+All errors are localized and user-friendly (see `lib/l10n/arb/` for translations).
+
+### Architecture
+
+The AI integration follows Clean Architecture principles:
+
+```
+lib/features/ai_integration/
+├── data/
+│   ├── dto/                      # OpenRouter API DTOs
+│   │   ├── openrouter_request_dto.dart
+│   │   ├── openrouter_response_dto.dart
+│   │   └── openrouter_message_dto.dart
+│   ├── data_source/             # Retrofit API client
+│   │   └── openrouter_data_source.dart
+│   └── service/                 # Service implementation
+│       └── openrouter_service.dart
+├── domain/
+│   ├── model/                   # Domain models
+│   │   ├── ai_message.dart
+│   │   ├── ai_response.dart
+│   │   └── ai_model_config.dart
+│   └── usecase/                 # Business logic
+│       └── generate_with_ai_usecase.dart
+└── (presentation)              # Optional UI components
+```
+
+**Integration points**:
+- `GenerateFlashcardsWithAiUseCase` - Orchestrates flashcard generation
+- `GenerationCubit.generateWithAI()` - UI-triggered AI generation
+- `OpenRouterService` - Handles API communication and error mapping
+
+### Security Best Practices
+
+✅ **API keys are obfuscated** using `envied` package  
+✅ **Environment files are git-ignored** (`.env.*` in `.gitignore`)  
+✅ **Request/response logging** available only in development  
+✅ **Timeout limits** prevent hanging requests (30s connect, 60s receive)  
+✅ **Credit limits** should be set in OpenRouter dashboard  
+
+⚠️ **Never commit `.env.*` files to version control**  
+⚠️ **Never log full API keys** (only first/last 4 characters if needed)  
+⚠️ **Monitor usage** regularly in OpenRouter dashboard  
+
+### Testing
+
+The AI integration includes comprehensive unit tests:
+
+```sh
+# Run all AI integration tests
+flutter test test/features/ai_integration/
+
+# Run specific test suites
+flutter test test/features/ai_integration/data/service/
+flutter test test/features/ai_integration/domain/usecase/
+```
+
+**Test coverage**: 27 unit tests covering:
+- OpenRouterService (DTO conversions, error handling)
+- GenerateWithAiUseCase (message handling, config)
+- GenerateFlashcardsWithAiUseCase (JSON parsing, validation)
+
+### Troubleshooting
+
+**Issue**: `Missing OPENROUTER_API_KEY environment variable`  
+**Solution**: Ensure `.env.*` files exist and run `dart run build_runner build`
+
+**Issue**: `401 Unauthorized`  
+**Solution**: Check that your API key is valid and not expired
+
+**Issue**: `402 Insufficient Credits`  
+**Solution**: Add credits to your OpenRouter account
+
+**Issue**: `429 Rate Limit Exceeded`  
+**Solution**: Wait before retrying or upgrade your OpenRouter plan
+
+**Issue**: `503 Model Unavailable`  
+**Solution**: Try a different model or wait for the model to become available
+
+For more details, see the implementation plan: `.ai/openrouter-service-implementation-plan.md`
+
+---
+
 ## For Developers & AI Agents 🤖
 
 ### Quick Start for Contributors

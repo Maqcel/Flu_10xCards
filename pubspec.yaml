@@ -10,6 +10,7 @@ dependencies:
   auto_route: 10.2.0
   bloc: 9.1.0
   collection: 1.19.1
+  crypto: ^3.0.7
   dartz: 0.10.1
   dio: 5.9.0
   envied: 1.3.1
