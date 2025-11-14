@@ -30,22 +30,6 @@ class AppTextStyles extends ThemeExtension<AppTextStyles> {
     required this.labelSmall,
   });
 
-  final TextStyle displayLarge;
-  final TextStyle displayMedium;
-  final TextStyle displaySmall;
-  final TextStyle headlineLarge;
-  final TextStyle headlineMedium;
-  final TextStyle headlineSmall;
-  final TextStyle titleLarge;
-  final TextStyle titleMedium;
-  final TextStyle titleSmall;
-  final TextStyle bodyLarge;
-  final TextStyle bodyMedium;
-  final TextStyle bodySmall;
-  final TextStyle labelLarge;
-  final TextStyle labelMedium;
-  final TextStyle labelSmall;
-
   /// Light theme text styles using Inter font
   factory AppTextStyles.light() {
     final baseTextTheme = GoogleFonts.interTextTheme();
@@ -116,6 +100,22 @@ class AppTextStyles extends ThemeExtension<AppTextStyles> {
 
   /// Dark theme text styles - same as light for now
   factory AppTextStyles.dark() => AppTextStyles.light();
+
+  final TextStyle displayLarge;
+  final TextStyle displayMedium;
+  final TextStyle displaySmall;
+  final TextStyle headlineLarge;
+  final TextStyle headlineMedium;
+  final TextStyle headlineSmall;
+  final TextStyle titleLarge;
+  final TextStyle titleMedium;
+  final TextStyle titleSmall;
+  final TextStyle bodyLarge;
+  final TextStyle bodyMedium;
+  final TextStyle bodySmall;
+  final TextStyle labelLarge;
+  final TextStyle labelMedium;
+  final TextStyle labelSmall;
 
   @override
   ThemeExtension<AppTextStyles> copyWith({

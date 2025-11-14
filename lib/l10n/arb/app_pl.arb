@@ -8,6 +8,18 @@
     "appFailureNotFound": "Nie znaleziono żądanego zasobu.",
     "appFailureCache": "Nie udało się załadować danych z pamięci podręcznej.",
     "appFailureUnexpected": "Wystąpił nieoczekiwany błąd.",
+    "appFailureAiRateLimitExceeded": "Przekroczono limit zapytań AI. Spróbuj ponownie później.",
+    "appFailureAiInsufficientCredits": "Niewystarczające środki AI. Sprawdź swoje konto.",
+    "appFailureAiModelUnavailable": "Model AI '{model}' jest obecnie niedostępny.",
+    "@appFailureAiModelUnavailable": {
+        "placeholders": {
+            "model": {
+                "type": "String"
+            }
+        }
+    },
+    "appFailureAiInvalidResponse": "Nieprawidłowa odpowiedź z AI. Spróbuj ponownie.",
+    "appFailureAiTimeout": "Zapytanie AI przekroczyło limit czasu. Spróbuj ponownie.",
     "@@@____APP_FAILURES___END": {},
     "@@@____COUNTER___START": {},
     "counterAppBarTitle": "Licznik",

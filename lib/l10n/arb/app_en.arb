@@ -8,6 +8,18 @@
     "appFailureNotFound": "Requested resource not found.",
     "appFailureCache": "Failed to load cached data.",
     "appFailureUnexpected": "An unexpected error occurred.",
+    "appFailureAiRateLimitExceeded": "AI rate limit exceeded. Please try again later.",
+    "appFailureAiInsufficientCredits": "Insufficient AI credits. Please check your account.",
+    "appFailureAiModelUnavailable": "AI model '{model}' is currently unavailable.",
+    "@appFailureAiModelUnavailable": {
+        "placeholders": {
+            "model": {
+                "type": "String"
+            }
+        }
+    },
+    "appFailureAiInvalidResponse": "Invalid response from AI. Please try again.",
+    "appFailureAiTimeout": "AI request timed out. Please try again.",
     "@@@____APP_FAILURES___END": {},
     "@@@____COUNTER___START": {},
     "counterAppBarTitle": "Counter",
