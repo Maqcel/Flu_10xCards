@@ -103,7 +103,7 @@ void main() {
       tester,
     ) async {
       when(
-        () => mockGenerationCubit.generate(text: any(named: 'text')),
+        () => mockGenerationCubit.generateWithAI(text: any(named: 'text')),
       ).thenAnswer((_) async {});
 
       await tester.pumpApp(
@@ -132,7 +132,7 @@ void main() {
     ) async {
       final validText = List.filled(100, 'Valid text ').join();
       when(
-        () => mockGenerationCubit.generate(text: any(named: 'text')),
+        () => mockGenerationCubit.generateWithAI(text: any(named: 'text')),
       ).thenAnswer((_) async {});
 
       await tester.pumpApp(
@@ -151,7 +151,7 @@ void main() {
       await tester.pump();
 
       verify(
-        () => mockGenerationCubit.generate(text: any(named: 'text')),
+        () => mockGenerationCubit.generateWithAI(text: any(named: 'text')),
       ).called(1);
     });
 

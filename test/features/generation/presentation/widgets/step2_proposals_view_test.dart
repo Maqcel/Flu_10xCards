@@ -33,11 +33,11 @@ void main() {
     testWidgets('displays empty state when no proposals', (tester) async {
       when(() => mockGenerationCubit.state).thenReturn(
         GenerationState(
-          status: GenerationStatus.ready,
-          sourceText: 'test',
+          status: GenerationStatus.initial,
+          sourceText: '',
           proposals: [],
           accepted: [],
-          edited: [],
+          editedIds: {},
         ),
       );
 
@@ -66,7 +66,7 @@ void main() {
           sourceText: 'test',
           proposals: proposals,
           accepted: [],
-          edited: [],
+          editedIds: {},
         ),
       );
 
@@ -87,9 +87,7 @@ void main() {
       const accepted = [
         FlashcardProposalEntity(front: 'Front 2', back: 'Back 2'),
       ];
-      const edited = [
-        FlashcardProposalEntity(front: 'Front 3', back: 'Back 3'),
-      ];
+      const editedIds = {'Front 3|Back 3'};
 
       when(() => mockGenerationCubit.state).thenReturn(
         GenerationState(
@@ -97,7 +95,7 @@ void main() {
           sourceText: 'test',
           proposals: proposals,
           accepted: accepted,
-          edited: edited,
+          editedIds: editedIds,
         ),
       );
 
@@ -121,7 +119,7 @@ void main() {
           sourceText: 'test',
           proposals: [],
           accepted: [],
-          edited: [],
+          editedIds: {},
         ),
       );
 
@@ -160,7 +158,7 @@ void main() {
             const FlashcardProposalEntity(front: 'Front 1', back: 'Back 1'),
           ],
           accepted: [],
-          edited: [],
+          editedIds: {},
         ),
       );
 
@@ -193,7 +191,7 @@ void main() {
           sourceText: 'test',
           proposals: [],
           accepted: accepted,
-          edited: [],
+          editedIds: {},
         ),
       );
 
@@ -226,7 +224,7 @@ void main() {
           sourceText: 'test',
           proposals: [],
           accepted: accepted,
-          edited: [],
+          editedIds: {},
         ),
       );
       when(() => mockGenerationCubit.saveAccepted()).thenAnswer((_) async {});
@@ -248,10 +246,9 @@ void main() {
       const accepted = [
         FlashcardProposalEntity(front: 'Front 1', back: 'Back 1'),
         FlashcardProposalEntity(front: 'Front 2', back: 'Back 2'),
-      ];
-      const edited = [
         FlashcardProposalEntity(front: 'Front 3', back: 'Back 3'),
       ];
+      const editedIds = {'Front 3|Back 3'};
 
       when(() => mockGenerationCubit.state).thenReturn(
         GenerationState(
@@ -259,7 +256,7 @@ void main() {
           sourceText: 'test',
           proposals: [],
           accepted: accepted,
-          edited: edited,
+          editedIds: editedIds,
         ),
       );
 
