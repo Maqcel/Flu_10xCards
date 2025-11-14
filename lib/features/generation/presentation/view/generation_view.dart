@@ -33,9 +33,7 @@ class GenerationView extends StatelessWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  context.l10n.generationSuccessSaved(
-                    state.accepted.length + state.edited.length,
-                  ),
+                  context.l10n.generationSuccessSaved(state.accepted.length),
                 ),
                 backgroundColor: context.colors.successGreen,
               ),

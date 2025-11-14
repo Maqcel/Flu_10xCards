@@ -100,7 +100,7 @@ class Step2ProposalsView extends StatelessWidget {
           _buildCounter(
             context,
             context.l10n.generationCounterEdited,
-            state.edited.length,
+            state.editedIds.length,
             context.colors.warningOrange,
           ),
           _buildCounter(
@@ -140,7 +140,7 @@ class Step2ProposalsView extends StatelessWidget {
     GenerationState state,
     GenerationCubit cubit,
   ) {
-    final hasAccepted = state.accepted.isNotEmpty || state.edited.isNotEmpty;
+    final hasAccepted = state.accepted.isNotEmpty;
 
     return Padding(
       padding: EdgeInsets.all(AppDimensions.padding16),
@@ -159,9 +159,7 @@ class Step2ProposalsView extends StatelessWidget {
             child: AppButton(
               onPressed: hasAccepted ? () => cubit.saveAccepted() : null,
               child: Text(
-                context.l10n.generationButtonSave(
-                  state.accepted.length + state.edited.length,
-                ),
+                context.l10n.generationButtonSave(state.accepted.length),
               ),
             ),
           ),

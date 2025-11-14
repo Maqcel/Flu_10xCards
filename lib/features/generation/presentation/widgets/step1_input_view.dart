@@ -83,8 +83,10 @@ class _Step1InputViewState extends State<Step1InputView> {
           AppButton(
             onPressed: isValid
                 ? () async {
-                    await context.read<GenerationCubit>().generate(
+                    // Use AI-powered generation (OpenRouter) instead of backend
+                    await context.read<GenerationCubit>().generateWithAI(
                       text: _controller.text,
+                      targetCount: 10, // Generate 10 flashcards
                     );
                   }
                 : null,

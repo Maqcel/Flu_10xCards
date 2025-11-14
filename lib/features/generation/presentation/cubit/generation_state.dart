@@ -19,7 +19,9 @@ abstract class GenerationState with _$GenerationState {
     List<FlashcardProposalEntity> proposals,
     @Default(<FlashcardProposalEntity>[])
     List<FlashcardProposalEntity> accepted,
-    @Default(<FlashcardProposalEntity>[]) List<FlashcardProposalEntity> edited,
+
+    /// Set of accepted flashcards that were edited (identified by front+back)
+    @Default(<String>{}) Set<String> editedIds,
     AppFailure? failure,
     String? generationId,
   }) = _GenerationState;
