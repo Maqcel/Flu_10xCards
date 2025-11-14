@@ -10,6 +10,9 @@ abstract class DevelopmentEnv {
 
   @EnviedField(varName: 'SUPABASE_ANON_KEY')
   static final String supabaseAnonKey = _DevelopmentEnv.supabaseAnonKey;
+
+  @EnviedField(varName: 'OPENROUTER_API_KEY')
+  static final String openRouterApiKey = _DevelopmentEnv.openRouterApiKey;
 }
 
 // Staging environment
@@ -20,6 +23,9 @@ abstract class StagingEnv {
 
   @EnviedField(varName: 'SUPABASE_ANON_KEY')
   static final String supabaseAnonKey = _StagingEnv.supabaseAnonKey;
+
+  @EnviedField(varName: 'OPENROUTER_API_KEY')
+  static final String openRouterApiKey = _StagingEnv.openRouterApiKey;
 }
 
 // Production environment
@@ -30,6 +36,9 @@ abstract class ProductionEnv {
 
   @EnviedField(varName: 'SUPABASE_ANON_KEY')
   static final String supabaseAnonKey = _ProductionEnv.supabaseAnonKey;
+
+  @EnviedField(varName: 'OPENROUTER_API_KEY')
+  static final String openRouterApiKey = _ProductionEnv.openRouterApiKey;
 }
 
 // Unified Env class that selects the right environment
@@ -51,5 +60,11 @@ class Env {
     if (isDevelopment) return DevelopmentEnv.supabaseAnonKey;
     if (isStaging) return StagingEnv.supabaseAnonKey;
     return ProductionEnv.supabaseAnonKey;
+  }
+
+  static String get openRouterApiKey {
+    if (isDevelopment) return DevelopmentEnv.openRouterApiKey;
+    if (isStaging) return StagingEnv.openRouterApiKey;
+    return ProductionEnv.openRouterApiKey;
   }
 }

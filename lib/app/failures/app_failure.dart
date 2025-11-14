@@ -28,6 +28,27 @@ abstract class AppFailure with _$AppFailure {
 
   /// Unexpected errors that don't fit other categories
   const factory AppFailure.unexpected({String? message}) = _Unexpected;
+
+  /// AI rate limit exceeded (429 error)
+  const factory AppFailure.aiRateLimitExceeded({String? message}) =
+      _AiRateLimitExceeded;
+
+  /// Insufficient AI credits (402 error)
+  const factory AppFailure.aiInsufficientCredits({String? message}) =
+      _AiInsufficientCredits;
+
+  /// AI model unavailable (503 error)
+  const factory AppFailure.aiModelUnavailable({
+    required String model,
+    String? message,
+  }) = _AiModelUnavailable;
+
+  /// Invalid response from AI (malformed JSON, etc.)
+  const factory AppFailure.aiInvalidResponse({String? message}) =
+      _AiInvalidResponse;
+
+  /// AI request timeout
+  const factory AppFailure.aiTimeout({String? message}) = _AiTimeout;
 }
 
 /// Extension to get user-friendly error messages from l10n
@@ -48,6 +69,15 @@ extension AppFailureX on AppFailure {
       notFound: (message) => message ?? l10n.appFailureNotFound,
       cache: (message) => message ?? l10n.appFailureCache,
       unexpected: (message) => message ?? l10n.appFailureUnexpected,
+      aiRateLimitExceeded: (message) =>
+          message ?? l10n.appFailureAiRateLimitExceeded,
+      aiInsufficientCredits: (message) =>
+          message ?? l10n.appFailureAiInsufficientCredits,
+      aiModelUnavailable: (model, message) =>
+          message ?? l10n.appFailureAiModelUnavailable(model),
+      aiInvalidResponse: (message) =>
+          message ?? l10n.appFailureAiInvalidResponse,
+      aiTimeout: (message) => message ?? l10n.appFailureAiTimeout,
     );
   }
 }

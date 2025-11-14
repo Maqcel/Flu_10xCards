@@ -21,6 +21,9 @@ abstract class CreateFlashcardRequestEntity
 
     /// Optional reference to generation session (for AI-generated flashcards)
     @JsonKey(name: 'generation_id') String? generationId,
+
+    /// User ID (required by Supabase, use dummy for development without auth)
+    @JsonKey(name: 'user_id') String? userId,
   }) = _CreateFlashcardRequestEntity;
 
   factory CreateFlashcardRequestEntity.fromJson(Map<String, dynamic> json) =>
